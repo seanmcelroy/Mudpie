@@ -2,8 +2,6 @@
 {
     using System.IO;
 
-    using Data;
-
     /// <summary>
     /// Global context variables passed into a program execution context
     /// </summary>

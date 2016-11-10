@@ -19,5 +19,16 @@
             [UsedImplicitly]
             set { this["directory"] = value; }
         }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the program can be triggered by a connection with no authenticated player
+        /// </summary>
+        [ConfigurationProperty("unauthenticated", IsRequired = false)]
+        public bool Unauthenticated
+        {
+            get { return (bool)this["unauthenticated"]; }
+            [UsedImplicitly]
+            set { this["unauthenticated"] = value; }
+        }
     }
 }

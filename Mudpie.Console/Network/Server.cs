@@ -36,17 +36,29 @@
         /// Initializes a new instance of the <see cref="Server"/> class.
         /// </summary>
         /// <param name="clearPorts">The ports over which clear-text communications are permitted</param>
-        public Server([NotNull] int[] clearPorts)
+        public Server([NotNull] int[] clearPorts, [NotNull] Scripting.Engine scriptingEngine)
         {
+            if (clearPorts == null)
+                throw new ArgumentNullException(nameof(clearPorts));
+            if (scriptingEngine == null)
+                throw new ArgumentNullException(nameof(scriptingEngine));
+
             this.ShowData = true;
             this.ClearPorts = clearPorts;
+            this.ScriptingEngine = scriptingEngine;
         }
 
         /// <summary>
         /// Gets or sets the ports over which clear-text communications are permitted
         /// </summary>
         [NotNull]
-        public int[] ClearPorts { get; set; }
+        public int[] ClearPorts { get; private set; }
+
+        /// <summary>
+        /// Gets or sets the scripting engine that will handle commands sent by connections to the server
+        /// </summary>
+        [NotNull]
+        internal Scripting.Engine ScriptingEngine { get; private set; }
 
         [NotNull]
         public IReadOnlyList<ConnectionMetadata> Connections

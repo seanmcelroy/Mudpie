@@ -56,7 +56,7 @@
                     {
                         if (!await redis.ExistsAsync("mudpie::rooms"))
                         {
-                            System.Console.WriteLine("Redis database is not seeded with any data.  Creating seed data...");
+                            Console.WriteLine("Redis database is not seeded with any data.  Creating seed data...");
                             var voidId = Guid.Empty.ToString("N");
                             var voidRoom = new Room
                             {
@@ -75,9 +75,10 @@
                             await redis.SetAddAsync("mudpie::players", godId);
                             await redis.AddAsync($"mudpie::player:{godId}", godPlayer);
                         }
-                        else
+
+                        /*else
                         {
-                            System.Console.WriteLine("Redis database is seeded with data.  BLOWING IT AWAY DATA...");
+                            Console.WriteLine("Redis database is seeded with data.  BLOWING IT AWAY DATA...");
 
                             System.Console.WriteLine("Deleting ROOMS...");
                             foreach (var roomId in await redis.SetMembersAsync<string>("mudpie::rooms"))
@@ -88,22 +89,21 @@
                             foreach (var playerId in await redis.SetMembersAsync<string>("mudpie::players"))
                                 await redis.RemoveAsync($"mudpie::player:{playerId}");
                             await redis.RemoveAsync("mudpie::players");
-                        }
+                        }*/
 
                         return 0;
                     }).Wait();
 
                 // Setup scripting engine
+                var scriptingEngine = new Engine(redis);
                 var scriptEngineTask = Task.Run(async () =>
                 {
-                    var engine = new Engine(redis);
-
                     foreach (var dir in mudpieConfigurationSection.Directories)
                         foreach (var file in System.IO.Directory.GetFiles(dir.Directory))
                             using (var sr = new System.IO.StreamReader(file))
                             {
                                 var contents = await sr.ReadToEndAsync();
-                                await engine.SaveProgramAsync(new Data.Program(System.IO.Path.GetFileNameWithoutExtension(file), contents));
+                                await scriptingEngine.SaveProgramAsync(new Data.Program(System.IO.Path.GetFileNameWithoutExtension(file), contents, dir.Unauthenticated));
                                 sr.Close();
                             }
                     
@@ -114,11 +114,12 @@
                 scriptEngineTask.Wait();
 
                 // Listen for connections
-                var server = new Server(mudpieConfigurationSection.Ports.Select(p => p.Port).ToArray());
+                var server = new Server(mudpieConfigurationSection.Ports.Select(p => p.Port).ToArray(), scriptingEngine);
                 server.Start();
-            }
 
-            System.Console.ReadLine();
+
+                System.Console.ReadLine();
+            }
         }
     }
 }

@@ -10,7 +10,7 @@
 
     using StackExchange.Redis.Extensions.Core;
 
-    public class Engine
+    internal class Engine
     {
         [NotNull]
         private ICacheClient redis;
@@ -24,37 +24,39 @@
         }
 
         [NotNull, ItemNotNull]
-        public async Task<Context<T>> RunProgramAsync<T>([NotNull] string programName, [NotNull] ObjectBase trigger, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<Context<T>> RunProgramAsync<T>([NotNull] string programName, [CanBeNull] ObjectBase trigger, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (string.IsNullOrWhiteSpace(programName))
-                return Context<T>.Error(null, "No program name was supplied");
-
-            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-            if (trigger == null)
-                return Context<T>.Error(null, "No trigger was supplied");
+                return Context<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No program name was supplied");
 
             var program = await this.LoadProgramAsync(programName);
             if (program == null)
-                return Context<T>.Error(program, $"Unable to locate program with name {programName}");
+                return Context<T>.Error(program, ContextErrorNumber.ProgramNotFound, $"Unable to locate program with name {programName}");
+
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+            if (trigger == null && !program.UnauthenticatedExecution)
+                return Context<T>.Error(null, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
 
             var context = new Context<T>(program);
-            var feedbackStream = new MemoryStream();
+            var feedbackStream = new MemoryStream(2048);
             var scriptGlobals = new ContextGlobals
                                     {
                                         EngineGlobals = this.engineGlobals,
-                                        TriggerId = trigger.Id,
-                                        TriggerName = trigger.Name,
+                                        TriggerId = trigger?.Id,
+                                        TriggerName = trigger?.Name,
                                         TriggerType = trigger is Player ? "PLAYER" : "?",
                                         Feedback = new StreamWriter(feedbackStream)
                                     };
 
             await context.RunAsync(scriptGlobals, cancellationToken);
 
+            await scriptGlobals.Feedback.FlushAsync();
             feedbackStream.Position = 0;
             using (var sr = new StreamReader(feedbackStream))
             {
                 var feedbackString = await sr.ReadToEndAsync();
-                context.CommitFeedback(feedbackString);
+                if (!string.IsNullOrEmpty(feedbackString))
+                    context.AppendFeedback(feedbackString);
             }
 
             return context;
