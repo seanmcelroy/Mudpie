@@ -16,7 +16,7 @@ namespace Mudpie.Console.Network
 
     using log4net;
 
-    using Mudpie.Console.Data;
+    using Data;
 
     internal class Connection
     {
@@ -267,8 +267,36 @@ namespace Mudpie.Console.Network
                                 Logger.Error("Exception processing a command", ex);
                                 break;
                             }
-                        } ... right here.
-                        else await this.Send("500 Unknown command\r\n");
+                        }
+                        else
+                        {
+                            var context = await server.ScriptingEngine.RunProgramAsync<int>(command, this.Identity);
+                            if (context == null || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
+                                await this.Send("Huh?\r\n");
+                            else if (context.ErrorNumber == Scripting.ContextErrorNumber.AuthenticationRequired)
+                                await this.Send("You must be logged in to use that command.\r\n");
+                            else if (context.State == Scripting.ContextState.Aborted)
+                                await this.Send("Aborted.\r\n");
+                            else if (context.State == Scripting.ContextState.Errored)
+                                await this.Send($"ERROR: {context.ErrorMessage}\r\n");
+                            else if (context.State == Scripting.ContextState.Killed)
+                                await this.Send($"KILLED: {context.ErrorMessage}\r\n");
+                            else if (context.State == Scripting.ContextState.Loaded)
+                                await this.Send($"STUCK: {context.ProgramName} loaded but not completed.\r\n");
+                            else if (context.State == Scripting.ContextState.Paused)
+                                await this.Send($"Paused: {context.ProgramName}.\r\n");
+                            else if (context.State == Scripting.ContextState.Running)
+                                await this.Send($"Running... {context.ProgramName}.\r\n");
+                            else if (context.State == Scripting.ContextState.Completed)
+                            {
+                                // Write feedback to output
+                                if (context.Feedback.Count == 0)
+                                    await this.Send($"{context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
+                                else
+                                    foreach (var line in context.Feedback)
+                                        await this.Send($"{line}\r\n");
+                            }
+                        }
                     }
 
                     this.builder.Clear();

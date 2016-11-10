@@ -1,19 +1,16 @@
 ﻿namespace Mudpie.Console.Scripting
 {
     using System;
-    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
-
-    using Microsoft.CodeAnalysis.CSharp.Scripting;
-    using Microsoft.CodeAnalysis.Scripting;
+    using System.Collections.Generic;
 
     /// <summary>
     /// An execution context instance of a <see cref="Script"/> running in an <see cref="Engine"/>
     /// </summary>
-    public class Context<T>
+    internal class Context<T>
     {
         /// <summary>
         /// Gets or sets the script to execute
@@ -21,19 +18,29 @@
         [CanBeNull]
         private readonly Data.Program _program;
 
+        /// <summary>
+        /// Gets or sets the current state of the execution context
+        /// </summary>
+        public ContextState State { get; private set; }
+
         [CanBeNull]
         public T ReturnValue { get; private set; }
 
         [CanBeNull]
+        public ContextErrorNumber? ErrorNumber { get; private set; }
+
+        [CanBeNull]
         public string ErrorMessage { get; private set; }
 
-        public string Feedback { get; private set; }
+        /// <summary>
+        /// Gets the name of the program
+        /// </summary>
+        public string ProgramName => _program == null ? null : _program.Name;
 
         /// <summary>
-        /// Once the script is compiled, the finished state is stored here for future executions
+        /// Gets or sets the feedback provided by the output of the executing program
         /// </summary>
-        [CanBeNull]
-        private Script<T> _compiledScript = null;
+        public Queue<string> Feedback { get; private set; } = new Queue<string>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Context{T}"/> class.
@@ -47,46 +54,44 @@
                 throw new ArgumentNullException(nameof(program));
 
             this._program = program;
+            this.State = ContextState.Loaded;
         }
 
-        private Context([CanBeNull] Data.Program program, [NotNull] string errorMessage)
+        private Context([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
         {
             if (string.IsNullOrWhiteSpace(errorMessage))
                 throw new ArgumentNullException(nameof(errorMessage));
 
             this._program = program;
+            this.ErrorNumber = errorNumber;
             this.ErrorMessage = errorMessage;
+            this.State = ContextState.Errored;
         }
 
-        public static Context<T> Error([CanBeNull] Data.Program program, [NotNull] string errorMessage)
+        public static Context<T> Error([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
         {
-            return new Context<T>(program, errorMessage);
+            return new Context<T>(program, errorNumber, errorMessage);
         }
 
-        internal void CommitFeedback(string feedback)
+        internal void AppendFeedback(string feedback)
         {
-            this.Feedback = feedback;
+            this.Feedback.Enqueue(feedback);
         }
 
         [NotNull]
         public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken = default(CancellationToken))
         {
-            // Add references
-            var scriptOptions = ScriptOptions.Default;
-            var mscorlib = typeof(object).Assembly;
-            var systemCore = typeof(Enumerable).Assembly;
-            scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore);
-
-            if (this._compiledScript == null)
-            {
-                var roslynScript = CSharpScript.Create<T>(this._program.ScriptSourceCodeLines.Aggregate((c, n) => c + n), globalsType: typeof(ContextGlobals));
-                roslynScript.Compile();
-                this._compiledScript = roslynScript;
+            this.State = ContextState.Running;
+            try {
+                var state = await this._program.Compile<T>().RunAsync(globals, cancellationToken);
+                this.ReturnValue = state.ReturnValue;
+                this.State = ContextState.Completed;
             }
-
-            var state = await this._compiledScript.WithOptions(scriptOptions).RunAsync(globals, cancellationToken);
-
-            this.ReturnValue = state.ReturnValue;
+            catch (Exception ex)
+            {
+                this.State = ContextState.Errored;
+                this.ErrorMessage = ex.ToString();
+            }
         }
     }
 }

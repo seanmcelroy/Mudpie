@@ -1,10 +1,13 @@
-﻿namespace Mudpie.Console.Data
+﻿using Microsoft.CodeAnalysis.Scripting;
+
+namespace Mudpie.Console.Data
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
 
     using JetBrains.Annotations;
+    using Microsoft.CodeAnalysis.CSharp.Scripting;
 
     /// <summary>
     /// A program is a series of lines of code that 
@@ -13,16 +16,23 @@
     {
         [NotNull]
         public List<string> ScriptSourceCodeLines { get; set; }
+        
+        /// <summary>
+        /// Once the script is compiled, the finished state is stored here for future executions
+        /// </summary>
+        [CanBeNull]
+        private Script _compiledScript = null;
 
-        public Program(string programName, [NotNull] string scriptSourceCode) : base(programName)
+        public Program(string programName, [NotNull] string scriptSourceCode, bool unauthenticated = false) : base(programName)
         {
             if (scriptSourceCode == null)
                 throw new ArgumentNullException(nameof(scriptSourceCode));
 
             this.ScriptSourceCodeLines = scriptSourceCode.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            this.UnauthenticatedExecution = unauthenticated;
         }
 
-        public Program(string programName, [NotNull] string[] scriptSourceCodeLines) : base(programName)
+        public Program(string programName, [NotNull] string[] scriptSourceCodeLines, bool unauthenticated = false) : base(programName)
         {
             if (scriptSourceCodeLines == null)
                 throw new ArgumentNullException(nameof(scriptSourceCodeLines));
@@ -30,6 +40,7 @@
                 throw new ArgumentException("Empty array", nameof(scriptSourceCodeLines));
 
             this.ScriptSourceCodeLines = scriptSourceCodeLines.ToList();
+            this.UnauthenticatedExecution = unauthenticated;
         }
 
         protected Program()
@@ -39,6 +50,29 @@
 
         protected Program(string programName) : base(programName)
         {
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether a user who has not yet authenticated can run the program
+        /// </summary>
+        public bool UnauthenticatedExecution { get; set; }
+
+        public Script<T> Compile<T>()
+        {
+            if (this._compiledScript == null)
+            {
+                // Add references
+                var scriptOptions = ScriptOptions.Default;
+                var mscorlib = typeof(object).Assembly;
+                var systemCore = typeof(Enumerable).Assembly;
+                scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore);
+
+                var roslynScript = CSharpScript.Create<T>(this.ScriptSourceCodeLines.Aggregate((c, n) => c + n), globalsType: typeof(Scripting.ContextGlobals));
+                roslynScript.WithOptions(scriptOptions).Compile();
+                this._compiledScript = roslynScript;
+            }
+
+            return (Script<T>)this._compiledScript;
         }
     }
 }
