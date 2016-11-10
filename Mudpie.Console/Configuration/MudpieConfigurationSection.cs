@@ -17,5 +17,13 @@
         [ConfigurationCollection(typeof(PortConfigurationElementCollection), AddItemName = "add", ClearItemsName = "clear", RemoveItemName = "remove")]
         [UsedImplicitly]
         public PortConfigurationElementCollection Ports => (PortConfigurationElementCollection)base["ports"];
+
+        /// <summary>
+        /// Gets the configuration element relating to how the MUD can find programs to load into its execution space
+        /// </summary>
+        [ConfigurationProperty("programs")]
+        [ConfigurationCollection(typeof(ProgramConfigurationElementCollection), AddItemName = "add", ClearItemsName = "clear", RemoveItemName = "remove")]
+        [UsedImplicitly]
+        public ProgramConfigurationElementCollection Directories => (ProgramConfigurationElementCollection)base["programs"];
     }
 }

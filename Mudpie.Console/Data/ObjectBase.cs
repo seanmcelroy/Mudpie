@@ -16,8 +16,29 @@ namespace Mudpie.Console.Data
     /// <summary>
     /// The base definition of any object in the MUD
     /// </summary>
+    [PublicAPI]
     public abstract class ObjectBase
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ObjectBase"/> class.
+        /// </summary>
+        protected ObjectBase()
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ObjectBase"/> class.
+        /// </summary>
+        /// <param name="name">Name of the object</param>
+        /// <exception cref="ArgumentNullException">Thrown if the name is null</exception>
+        protected ObjectBase([NotNull] string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentNullException(nameof(name));
+
+            this.Name = name;
+        }
+
         /// <summary>
         /// Gets or sets the globally unique identifier of the object
         /// </summary>
@@ -35,17 +56,5 @@ namespace Mudpie.Console.Data
         /// </summary>
         [CanBeNull]
         public string Description { get; set; }
-
-        protected ObjectBase()
-        {
-        }
-
-        protected ObjectBase([NotNull] string name)
-        {
-            if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentNullException(nameof(name));
-
-            this.Name = name;
-        }
     }
 }

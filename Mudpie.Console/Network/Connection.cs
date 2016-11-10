@@ -267,7 +267,7 @@ namespace Mudpie.Console.Network
                                 Logger.Error("Exception processing a command", ex);
                                 break;
                             }
-                        }
+                        } ... right here.
                         else await this.Send("500 Unknown command\r\n");
                     }
 

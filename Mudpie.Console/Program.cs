@@ -41,6 +41,14 @@
             var mudpieConfigurationSection = (MudpieConfigurationSection)config.GetSection("mudpie");
             Logger.InfoFormat("Loaded configuration from {0}", config.FilePath);
             
+            var godId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1).ToString("N");
+            var godPlayer = new Player
+            {
+                Id = godId,
+                Name = "God",
+                Username = "god"
+            };
+
             using (var redis = new StackExchangeRedisCacheClient(new NewtonsoftSerializer()))
             {
                 // Seed data
@@ -60,13 +68,6 @@
                             await redis.SetAddAsync("mudpie::rooms", voidId);
                             await redis.AddAsync($"mudpie::room:{voidId}", voidRoom);
 
-                            var godId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1).ToString("N");
-                            var godPlayer = new Player
-                            {
-                                Id = godId,
-                                Name = "God",
-                                Username = "god"
-                            };
                             var godPassword = new SecureString();
                             foreach (var c in "god")
                                 godPassword.AppendChar(c);
@@ -96,9 +97,19 @@
                 var scriptEngineTask = Task.Run(async () =>
                 {
                     var engine = new Engine(redis);
-                    await engine.SaveProgramAsync(new Data.Program("test", "int x = 1;int y = 2;return x + y;"));
-                    var result = await engine.RunProgramAsync<int>("test");
-                    Console.WriteLine(result.ReturnValue);
+
+                    foreach (var dir in mudpieConfigurationSection.Directories)
+                        foreach (var file in System.IO.Directory.GetFiles(dir.Directory))
+                            using (var sr = new System.IO.StreamReader(file))
+                            {
+                                var contents = await sr.ReadToEndAsync();
+                                await engine.SaveProgramAsync(new Data.Program(System.IO.Path.GetFileNameWithoutExtension(file), contents));
+                                sr.Close();
+                            }
+                    
+                    //await engine.SaveProgramAsync(new Data.Program("test", "int x = 1;int y = 2;return x + y;"));
+                    //var result = await engine.RunProgramAsync<int>("test", godPlayer);
+                    //Console.WriteLine(result.ReturnValue);
                 });
                 scriptEngineTask.Wait();
 

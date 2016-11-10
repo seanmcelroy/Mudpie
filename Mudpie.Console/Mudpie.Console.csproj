@@ -169,7 +169,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CommandProcessingResult.cs" />
+    <Compile Include="Configuration\ProgramConfigurationElement.cs" />
     <Compile Include="Configuration\PortConfigurationElement.cs" />
+    <Compile Include="Configuration\ProgramConfigurationElementCollection.cs" />
     <Compile Include="Configuration\PortConfigurationElementCollection.cs" />
     <Compile Include="Configuration\MudpieConfigurationSection.cs" />
     <Compile Include="Data\ObjectBase.cs" />
@@ -191,6 +193,7 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+    <None Include="Scripting\Builtin\test2.prog" />
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="..\packages\Microsoft.CodeAnalysis.Analyzers.1.1.0\analyzers\dotnet\cs\Microsoft.CodeAnalysis.Analyzers.dll" />

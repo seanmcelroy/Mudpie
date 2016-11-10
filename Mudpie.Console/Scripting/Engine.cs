@@ -1,9 +1,12 @@
 ﻿namespace Mudpie.Console.Scripting
 {
+    using System.IO;
     using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
+
+    using Mudpie.Console.Data;
 
     using StackExchange.Redis.Extensions.Core;
 
@@ -21,16 +24,39 @@
         }
 
         [NotNull, ItemNotNull]
-        public async Task<Context<T>> RunProgramAsync<T>([NotNull] string programName, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<Context<T>> RunProgramAsync<T>([NotNull] string programName, [NotNull] ObjectBase trigger, CancellationToken cancellationToken = default(CancellationToken))
         {
+            if (string.IsNullOrWhiteSpace(programName))
+                return Context<T>.Error(null, "No program name was supplied");
+
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+            if (trigger == null)
+                return Context<T>.Error(null, "No trigger was supplied");
+
             var program = await this.LoadProgramAsync(programName);
             if (program == null)
                 return Context<T>.Error(program, $"Unable to locate program with name {programName}");
 
             var context = new Context<T>(program);
-            var scriptGlobals = new ContextGlobals();
+            var feedbackStream = new MemoryStream();
+            var scriptGlobals = new ContextGlobals
+                                    {
+                                        EngineGlobals = this.engineGlobals,
+                                        TriggerId = trigger.Id,
+                                        TriggerName = trigger.Name,
+                                        TriggerType = trigger is Player ? "PLAYER" : "?",
+                                        Feedback = new StreamWriter(feedbackStream)
+                                    };
 
             await context.RunAsync(scriptGlobals, cancellationToken);
+
+            feedbackStream.Position = 0;
+            using (var sr = new StreamReader(feedbackStream))
+            {
+                var feedbackString = await sr.ReadToEndAsync();
+                context.CommitFeedback(feedbackString);
+            }
+
             return context;
         }
 

@@ -27,6 +27,8 @@
         [CanBeNull]
         public string ErrorMessage { get; private set; }
 
+        public string Feedback { get; private set; }
+
         /// <summary>
         /// Once the script is compiled, the finished state is stored here for future executions
         /// </summary>
@@ -59,6 +61,11 @@
         public static Context<T> Error([CanBeNull] Data.Program program, [NotNull] string errorMessage)
         {
             return new Context<T>(program, errorMessage);
+        }
+
+        internal void CommitFeedback(string feedback)
+        {
+            this.Feedback = feedback;
         }
 
         [NotNull]

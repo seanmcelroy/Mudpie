@@ -10,12 +10,21 @@
 
     public class Player : ObjectBase
     {
+        /// <summary>
+        /// Gets or sets the identity of the user for authentication
+        /// </summary>
         [NotNull]
         public string Username { get; set; }
 
+        /// <summary>
+        /// Gets or sets the hash of the player's password
+        /// </summary>
         [CanBeNull]
         public string PasswordHash { get; set; }
 
+        /// <summary>
+        /// Gets or sets the salt used to hash the player's password
+        /// </summary>
         [CanBeNull]
         public string PasswordSalt { get; set; }
 
@@ -39,6 +48,10 @@
             }
         }
 
+        /// <summary>Determines whether the specified object is equal to the current object.</summary>
+        /// <returns>true if the specified object  is equal to the current object; otherwise, false.</returns>
+        /// <param name="obj">The object to compare with the current object. </param>
+        /// <filterpriority>2</filterpriority>
         public override bool Equals(object obj)
         {
             // If parameter is null return false.
@@ -56,6 +69,9 @@
             return this.Id == p.Id;
         }
 
+        /// <summary>Serves as the default hash function. </summary>
+        /// <returns>A hash code for the current object.</returns>
+        /// <filterpriority>2</filterpriority>
         public override int GetHashCode()
         {
             return this.Id.GetHashCode();
