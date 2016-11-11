@@ -1,11 +1,13 @@
 ﻿namespace Mudpie.Console.Scripting
 {
     using System;
+    using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
-    using System.Collections.Generic;
+
+    using Microsoft.CodeAnalysis.Scripting;
 
     /// <summary>
     /// An execution context instance of a <see cref="Script"/> running in an <see cref="Engine"/>
@@ -35,7 +37,7 @@
         /// <summary>
         /// Gets the name of the program
         /// </summary>
-        public string ProgramName => _program == null ? null : _program.Name;
+        public string ProgramName => this._program?.Name;
 
         /// <summary>
         /// Gets or sets the feedback provided by the output of the executing program
@@ -68,6 +70,7 @@
             this.State = ContextState.Errored;
         }
 
+        [NotNull, Pure]
         public static Context<T> Error([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
         {
             return new Context<T>(program, errorNumber, errorMessage);

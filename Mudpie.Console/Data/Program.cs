@@ -43,12 +43,18 @@ namespace Mudpie.Console.Data
             this.UnauthenticatedExecution = unauthenticated;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Program"/> class.
+        /// </summary>
         protected Program()
-            : base()
         {
         }
 
-        protected Program(string programName) : base(programName)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Program"/> class.
+        /// </summary>
+        /// <param name="programName">The name of the program</param>
+        protected Program([NotNull] string programName) : base(programName)
         {
         }
 
@@ -66,8 +72,10 @@ namespace Mudpie.Console.Data
                 var mscorlib = typeof(object).Assembly;
                 var systemCore = typeof(Enumerable).Assembly;
                 scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore);
-
-                var roslynScript = CSharpScript.Create<T>(this.ScriptSourceCodeLines.Aggregate((c, n) => c + n), globalsType: typeof(Scripting.ContextGlobals));
+                
+                var roslynScript = CSharpScript
+                    .Create<T>("System.Console.SetOut(Feedback);", globalsType: typeof(Scripting.ContextGlobals))
+                    .ContinueWith<T>(this.ScriptSourceCodeLines.Aggregate((c, n) => c + n));
                 roslynScript.WithOptions(scriptOptions).Compile();
                 this._compiledScript = roslynScript;
             }

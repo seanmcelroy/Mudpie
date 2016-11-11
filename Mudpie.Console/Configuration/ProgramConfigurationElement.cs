@@ -26,7 +26,7 @@
         [ConfigurationProperty("unauthenticated", IsRequired = false)]
         public bool Unauthenticated
         {
-            get { return (bool)this["unauthenticated"]; }
+            get { return (bool)(this["unauthenticated"] ?? false); }
             [UsedImplicitly]
             set { this["unauthenticated"] = value; }
         }

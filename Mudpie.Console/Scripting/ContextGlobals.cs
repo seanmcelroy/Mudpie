@@ -1,6 +1,17 @@
-﻿namespace Mudpie.Console.Scripting
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="ContextGlobals.cs" company="Sean McElroy">
+//   
+// </copyright>
+// <summary>
+//   Global context variables passed into a program execution context
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Scripting
 {
     using System.IO;
+
+    using Mudpie.Console.Data;
 
     /// <summary>
     /// Global context variables passed into a program execution context

@@ -1,4 +1,13 @@
-﻿namespace Mudpie.Console.Configuration
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="MudpieConfigurationSection.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   The primary configuration section for the server instance
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Configuration
 {
     using System.Configuration;
     using JetBrains.Annotations;

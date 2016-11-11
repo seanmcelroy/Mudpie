@@ -68,27 +68,27 @@
         /// <param name="programName">The name of the <see cref="Data.Program"/> to load</param>
         /// <returns>The <see cref="Data.Program"/> if found; otherwise, null</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public async Task<Data.Program> LoadProgramAsync([NotNull] string programName)
+        public async Task<Program> LoadProgramAsync([NotNull] string programName)
         {
             var normalizedProgramName = programName.ToLowerInvariant();
 
-            if (await redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
-                return await redis.GetAsync<Data.Program>($"mudpie::program:{normalizedProgramName}");
+            if (await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
+                return await this.redis.GetAsync<Program>($"mudpie::program:{normalizedProgramName}");
 
             return null;
         }
 
         [NotNull]
-        public async Task SaveProgramAsync([NotNull] Data.Program program)
+        public async Task SaveProgramAsync([NotNull] Program program)
         {
             var normalizedProgramName = program.Name.ToLowerInvariant();
 
-            if (await redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
-                await redis.ReplaceAsync($"mudpie::program:{normalizedProgramName}", program);
+            if (await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
+                await this.redis.ReplaceAsync($"mudpie::program:{normalizedProgramName}", program);
             else
-                await redis.AddAsync($"mudpie::program:{normalizedProgramName}", program);
+                await this.redis.AddAsync($"mudpie::program:{normalizedProgramName}", program);
 
-            await redis.SetAddAsync("mudpie::programs", normalizedProgramName);
+            await this.redis.SetAddAsync("mudpie::programs", normalizedProgramName);
         }
     }
 }
