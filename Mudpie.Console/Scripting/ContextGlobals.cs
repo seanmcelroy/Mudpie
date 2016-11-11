@@ -42,8 +42,23 @@ namespace Mudpie.Console.Scripting
         public string TriggerName { get; internal set; }
 
         /// <summary>
+        /// Gets or sets a text writer that can be used to receive information from the triggering object.
+        /// </summary>
+        private MemoryStream __INTERNAL__ScriptInputStream { get; set; } = new MemoryStream(2048);
+
+        public TextReader __INTERNAL__ScriptInput { get; private set; }
+
+        public TextWriter __INTERNAL__ScriptInputWriter { get; private set; }
+
+        /// <summary>
         /// Gets or sets a text writer that can be used to send information back to the triggering object.
         /// </summary>
-        public TextWriter Feedback { get; internal set; }
+        public TextWriter __INTERNAL__ScriptOutput { get; internal set; }
+
+        public ContextGlobals()
+        {
+            this.__INTERNAL__ScriptInput = new PlayerInputTextReader(__INTERNAL__ScriptInputStream);
+            this.__INTERNAL__ScriptInputWriter = new StreamWriter(__INTERNAL__ScriptInputStream);
+        }
     }
 }

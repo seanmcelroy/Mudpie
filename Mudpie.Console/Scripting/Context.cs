@@ -42,7 +42,7 @@
         /// <summary>
         /// Gets or sets the feedback provided by the output of the executing program
         /// </summary>
-        public Queue<string> Feedback { get; private set; } = new Queue<string>();
+        public Queue<string> Output { get; private set; } = new Queue<string>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Context{T}"/> class.
@@ -78,21 +78,21 @@
             
         internal void AppendFeedback(string feedback)
         {
-            if (this.Feedback.Count == 0 || this.Feedback.Peek().EndsWith("\r\n"))
-                this.Feedback.Enqueue(feedback);
+            if (this.Output.Count == 0 || this.Output.Peek().EndsWith("\r\n"))
+                this.Output.Enqueue(feedback);
             else if (feedback.EndsWith("\r\n"))
-                this.Feedback.Enqueue(feedback);
+                this.Output.Enqueue(feedback);
             else if (feedback.IndexOf("\r\n", StringComparison.Ordinal) > -1)
             {
                 var lines = feedback.Split(new[] { "\r\n" }, StringSplitOptions.None);
                 for (int i = 0; i < lines.Length; i++)
                     if (i < lines.Length - 1)
-                        this.Feedback.Enqueue(lines[i] + "\r\n");
+                        this.Output.Enqueue(lines[i] + "\r\n");
                     else
-                        this.Feedback.Enqueue(lines[i]);
+                        this.Output.Enqueue(lines[i]);
             }
             else
-                this.Feedback.Enqueue(feedback);
+                this.Output.Enqueue(feedback);
         }
 
         [NotNull]

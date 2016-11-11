@@ -80,7 +80,7 @@ namespace Mudpie.Console.Data
                 scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore);
 
                 var roslynScript = CSharpScript
-                    .Create<T>("System.Console.SetOut(Feedback);", globalsType: typeof(Scripting.ContextGlobals));
+                    .Create<T>("System.Console.SetOut(__INTERNAL__ScriptOutput);System.Console.SetIn(__INTERNAL__ScriptInput);", globalsType: typeof(Scripting.ContextGlobals));
 
                 foreach (var line in this.ScriptSourceCodeLines)
                     roslynScript = roslynScript.ContinueWith<T>(line);

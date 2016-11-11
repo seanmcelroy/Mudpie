@@ -29,7 +29,7 @@ namespace Mudpie.Console.Network
         /// <summary>
         /// A command-indexed dictionary with function pointers to support client command
         /// </summary>
-        private static readonly Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>> CommandDirectory;
+        private static readonly Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>> BuiltInCommandDirectory;
 
         /// <summary>
         /// The logging utility instance to use to log events from this class
@@ -96,14 +96,26 @@ namespace Mudpie.Console.Network
         private CommandProcessingResult inProcessCommand;
 
         /// <summary>
+        /// Gets or sets the mode for the connection.  When a connection is in <see cref="ConnectionMode.Normal"/> mode,
+        /// commands will be process by the global command resolution system.  When the connection is in <see cref="ConnectionMode.InteractiveProgram"/>,
+        /// all input is directed to a running program that is serving the connection.
+        /// </summary>
+        public ConnectionMode Mode { get; private set; } = ConnectionMode.Normal;
+
+        /// <summary>
+        /// The handler that receives messages while the <see cref="Mode"/> is set to <see cref="ConnectionMode.InteractiveProgram"/>
+        /// </summary>
+        [CanBeNull]
+        private Action<string> programInputHandler;
+
+        /// <summary>
         /// Initializes static members of the <see cref="Connection"/> class.
         /// </summary>
         static Connection()
         {
-            CommandDirectory = new Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>>
+            BuiltInCommandDirectory = new Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>>
                 {
-                    { "CAPABILITIES", async (c, data) => await c.Capabilities() },
-                    { "SC", async (c, data) => await c.Script() },
+                    { "CAPABILITIES", async (c, data) => await c.Capabilities() }
                 };
         }
 
@@ -246,17 +258,23 @@ namespace Mudpie.Console.Network
                         if (this.inProcessCommand != null && this.inProcessCommand.IsQuitting)
                             this.inProcessCommand = null;
                     }
+                    else if (this.Mode == ConnectionMode.InteractiveProgram)
+                    {
+                        // Send input instead to the program bound to this connection
+                        Debug.Assert(programInputHandler != null);
+                        programInputHandler.Invoke(content);
+                    }
                     else
                     {
                         var command = content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant();
-                        if (CommandDirectory.ContainsKey(command))
+                        if (BuiltInCommandDirectory.ContainsKey(command))
                         {
                             try
                             {
                                 if (this.ShowCommands)
                                     Logger.TraceFormat("{0}:{1} >{2}> {3}", this.RemoteAddress, this.RemotePort, ">", content.TrimEnd('\r', '\n'));
 
-                                var result = await CommandDirectory[command].Invoke(this, content);
+                                var result = await BuiltInCommandDirectory[command].Invoke(this, content);
 
                                 if (!result.IsHandled) await this.SendAsync("500 Unknown command\r\n");
                                 else if (result.MessageHandler != null) this.inProcessCommand = result;
@@ -291,10 +309,10 @@ namespace Mudpie.Console.Network
                             else if (context.State == Scripting.ContextState.Completed)
                             {
                                 // Write feedback to output
-                                if (context.Feedback.Count == 0)
+                                if (context.Output.Count == 0)
                                     await this.SendAsync($"{context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
                                 else
-                                    foreach (var line in context.Feedback)
+                                    foreach (var line in context.Output)
                                         await this.SendAsync($"{line}\r\n");
                             }
                         }
@@ -401,6 +419,18 @@ namespace Mudpie.Console.Network
             }
         }
 
+        public void RedirectInputToProgram([NotNull] Action<string> programInputHandler)
+        {
+            this.programInputHandler = programInputHandler;
+            Mode = ConnectionMode.InteractiveProgram;
+        }
+
+        public void ResetInputRedirection()
+        {
+            Mode = ConnectionMode.Normal;
+            this.programInputHandler = null;
+        }
+
         public async Task Shutdown()
         {
             if (this.client.Connected)
@@ -422,27 +452,6 @@ namespace Mudpie.Console.Network
         /// <returns>A command processing result specifying the command is handled.</returns>
         /// <remarks>See <a href="http://tools.ietf.org/html/rfc3977#section-5.2">RFC 3977</a> for more information.</remarks>
         private async Task<CommandProcessingResult> Capabilities()
-        {
-            var sb = new StringBuilder();
-            sb.Append("101 Capability list:\r\n");
-            sb.Append("VERSION 2\r\n");
-
-            // sb.Append("IHAVE\r\n");
-            sb.Append("HDR\r\n");
-            sb.Append("LIST ACTIVE NEWSGROUPS ACTIVE.TIMES DISTRIB.PATS HEADERS OVERVIEW.FMT\r\n");
-            sb.Append("MODE-READER\r\n");
-            sb.Append("NEWNEWS\r\n");
-            sb.Append("OVER MSGID\r\n");
-            sb.Append("POST\r\n");
-            sb.Append("READER\r\n");
-            sb.Append("XFEATURE-COMPRESS GZIP TERMINATOR\r\n");
-            sb.Append("IMPLEMENTATION McNNTP 1.0.0\r\n");
-            sb.Append(".\r\n");
-            await this.SendAsync(sb.ToString());
-            return new CommandProcessingResult(true);
-        }
-
-        private async Task<CommandProcessingResult> Script()
         {
             var sb = new StringBuilder();
             sb.Append("101 Capability list:\r\n");

@@ -180,6 +180,7 @@
     <Compile Include="LogUtility.cs" />
     <Compile Include="Network\Connection.cs" />
     <Compile Include="Network\ConnectionMetadata.cs" />
+    <Compile Include="Network\ConnectionMode.cs" />
     <Compile Include="Network\Listener.cs" />
     <Compile Include="Network\PortClass.cs" />
     <Compile Include="Network\Server.cs" />
@@ -191,6 +192,7 @@
     <Compile Include="Scripting\ContextState.cs" />
     <Compile Include="Scripting\Engine.cs" />
     <Compile Include="Data\Program.cs" />
+    <Compile Include="Scripting\PlayerInputTextReader.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

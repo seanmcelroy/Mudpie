@@ -38,10 +38,10 @@
                 return Context<T>.Error(null, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
 
             var context = new Context<T>(program);
-            using (var feedbackStream = new MemoryStream(2048))
-            using (var feedbackStreamReader = new StreamReader(feedbackStream))
-            using (var feedbackStreamWriter = new StreamWriter(feedbackStream))
-            using (var feedbackCancellationTokenSource = new CancellationTokenSource())
+            using (var outputStream = new MemoryStream(2048))
+            using (var outputStreamReader = new StreamReader(outputStream))
+            using (var outputStreamWriter = new StreamWriter(outputStream))
+            using (var outputCancellationTokenSource = new CancellationTokenSource())
             {
                 var scriptGlobals = new ContextGlobals
                 {
@@ -49,52 +49,66 @@
                     TriggerId = trigger?.Id,
                     TriggerName = trigger?.Name,
                     TriggerType = trigger is Player ? "PLAYER" : "?",
-                    Feedback = feedbackStreamWriter
+                    __INTERNAL__ScriptOutput = outputStreamWriter
                 };
 
-                var feedbackLastPositionRead = 0L;
-                if (program.Interactive)
+                var outputLastPositionRead = 0L;
+
+                // OUTPUT
+                var appendOutputTask = new Task(async () =>
                 {
-                    var appendFeedbackTask = new Task(async () =>
+                    while (context.State == ContextState.Loaded || context.State == ContextState.Running)
                     {
-                        while (context.State == ContextState.Loaded || context.State == ContextState.Running)
+                        if (context.State == ContextState.Running)
                         {
-                            if (context.State == ContextState.Running)
-                            {
-                                await scriptGlobals.Feedback.FlushAsync();
-                                feedbackStream.Position = feedbackLastPositionRead;
-                                var feedbackString = await feedbackStreamReader.ReadToEndAsync();
-                                if (!string.IsNullOrEmpty(feedbackString))
-                                    context.AppendFeedback(feedbackString);
-                                feedbackLastPositionRead = feedbackStream.Position;
+                            await scriptGlobals.__INTERNAL__ScriptOutput.FlushAsync();
+                            outputStream.Position = outputLastPositionRead;
+                            var outputString = await outputStreamReader.ReadToEndAsync();
+                            if (!string.IsNullOrEmpty(outputString))
+                                context.AppendFeedback(outputString);
+                            outputLastPositionRead = outputStream.Position;
 
                             // Send output to trigger, if capable of receiving.
-                            while (connection != null && context.Feedback.Count > 0)
-                                    await connection.SendAsync(context.Feedback.Dequeue());
-                            }
-                            Thread.Sleep(100);
+                            while (connection != null && context.Output.Count > 0)
+                                await connection.SendAsync(context.Output.Dequeue());
                         }
-                    }, feedbackCancellationTokenSource.Token);
-                    appendFeedbackTask.Start();
-                }
+                        Thread.Sleep(100);
+                    }
+                }, outputCancellationTokenSource.Token);
+                appendOutputTask.Start();
 
-                await context.RunAsync(scriptGlobals, cancellationToken);
-
-                // Do one last time to get any last feedback
-                if (program.Interactive)
+                // INPUT
+                if (program.Interactive && connection != null)
                 {
-                    feedbackCancellationTokenSource.Cancel();
-                    await scriptGlobals.Feedback.FlushAsync();
-                    feedbackStream.Position = feedbackLastPositionRead;
-                    var feedbackString2 = await feedbackStreamReader.ReadToEndAsync();
-                    if (!string.IsNullOrEmpty(feedbackString2))
-                        context.AppendFeedback(feedbackString2);
-                    feedbackLastPositionRead = feedbackStream.Position;
-
-                    // Send output to trigger, if capable of receiving.
-                    while (connection != null && context.Feedback.Count > 0)
-                        await connection.SendAsync(context.Feedback.Dequeue());
+                    connection.RedirectInputToProgram(async input =>
+                    {
+                        await scriptGlobals.__INTERNAL__ScriptInputWriter.WriteAsync(input);
+                        await scriptGlobals.__INTERNAL__ScriptInputWriter.FlushAsync();
+                    });
                 }
+
+                try
+                {
+                    await context.RunAsync(scriptGlobals, cancellationToken);
+                }
+                finally
+                {
+                    connection.ResetInputRedirection();
+                }
+
+                outputCancellationTokenSource.Cancel();
+                // Do one last time to get any last feedback
+
+                await scriptGlobals.__INTERNAL__ScriptOutput.FlushAsync();
+                outputStream.Position = outputLastPositionRead;
+                var feedbackString2 = await outputStreamReader.ReadToEndAsync();
+                if (!string.IsNullOrEmpty(feedbackString2))
+                    context.AppendFeedback(feedbackString2);
+                outputLastPositionRead = outputStream.Position;
+
+                // Send output to trigger, if capable of receiving.
+                while (connection != null && context.Output.Count > 0)
+                    await connection.SendAsync(context.Output.Dequeue());
             }
 
             return context;
