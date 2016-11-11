@@ -24,7 +24,7 @@
         }
 
         [NotNull, ItemNotNull]
-        public async Task<Context<T>> RunProgramAsync<T>([NotNull] string programName, [CanBeNull] ObjectBase trigger, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<Context<T>> RunProgramAsync<T>([NotNull] string programName, [CanBeNull] ObjectBase trigger, [CanBeNull] Network.Connection connection, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (string.IsNullOrWhiteSpace(programName))
                 return Context<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No program name was supplied");
@@ -38,25 +38,63 @@
                 return Context<T>.Error(null, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
 
             var context = new Context<T>(program);
-            var feedbackStream = new MemoryStream(2048);
-            var scriptGlobals = new ContextGlobals
-                                    {
-                                        EngineGlobals = this.engineGlobals,
-                                        TriggerId = trigger?.Id,
-                                        TriggerName = trigger?.Name,
-                                        TriggerType = trigger is Player ? "PLAYER" : "?",
-                                        Feedback = new StreamWriter(feedbackStream)
-                                    };
-
-            await context.RunAsync(scriptGlobals, cancellationToken);
-
-            await scriptGlobals.Feedback.FlushAsync();
-            feedbackStream.Position = 0;
-            using (var sr = new StreamReader(feedbackStream))
+            using (var feedbackStream = new MemoryStream(2048))
+            using (var feedbackStreamReader = new StreamReader(feedbackStream))
+            using (var feedbackStreamWriter = new StreamWriter(feedbackStream))
+            using (var feedbackCancellationTokenSource = new CancellationTokenSource())
             {
-                var feedbackString = await sr.ReadToEndAsync();
-                if (!string.IsNullOrEmpty(feedbackString))
-                    context.AppendFeedback(feedbackString);
+                var scriptGlobals = new ContextGlobals
+                {
+                    EngineGlobals = this.engineGlobals,
+                    TriggerId = trigger?.Id,
+                    TriggerName = trigger?.Name,
+                    TriggerType = trigger is Player ? "PLAYER" : "?",
+                    Feedback = feedbackStreamWriter
+                };
+
+                var feedbackLastPositionRead = 0L;
+                if (program.Interactive)
+                {
+                    var appendFeedbackTask = new Task(async () =>
+                    {
+                        while (context.State == ContextState.Loaded || context.State == ContextState.Running)
+                        {
+                            if (context.State == ContextState.Running)
+                            {
+                                await scriptGlobals.Feedback.FlushAsync();
+                                feedbackStream.Position = feedbackLastPositionRead;
+                                var feedbackString = await feedbackStreamReader.ReadToEndAsync();
+                                if (!string.IsNullOrEmpty(feedbackString))
+                                    context.AppendFeedback(feedbackString);
+                                feedbackLastPositionRead = feedbackStream.Position;
+
+                            // Send output to trigger, if capable of receiving.
+                            while (connection != null && context.Feedback.Count > 0)
+                                    await connection.SendAsync(context.Feedback.Dequeue());
+                            }
+                            Thread.Sleep(100);
+                        }
+                    }, feedbackCancellationTokenSource.Token);
+                    appendFeedbackTask.Start();
+                }
+
+                await context.RunAsync(scriptGlobals, cancellationToken);
+
+                // Do one last time to get any last feedback
+                if (program.Interactive)
+                {
+                    feedbackCancellationTokenSource.Cancel();
+                    await scriptGlobals.Feedback.FlushAsync();
+                    feedbackStream.Position = feedbackLastPositionRead;
+                    var feedbackString2 = await feedbackStreamReader.ReadToEndAsync();
+                    if (!string.IsNullOrEmpty(feedbackString2))
+                        context.AppendFeedback(feedbackString2);
+                    feedbackLastPositionRead = feedbackStream.Position;
+
+                    // Send output to trigger, if capable of receiving.
+                    while (connection != null && context.Feedback.Count > 0)
+                        await connection.SendAsync(context.Feedback.Dequeue());
+                }
             }
 
             return context;

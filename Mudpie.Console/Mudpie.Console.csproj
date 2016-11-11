@@ -197,6 +197,7 @@
     <None Include="packages.config" />
     <None Include="Scripting\Builtin\test2.prog" />
     <None Include="Scripting\Builtin\Unauthenticated\help.prog" />
+    <None Include="Scripting\Builtin\Unauthenticated\marco.prog" />
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="..\packages\Microsoft.CodeAnalysis.Analyzers.1.1.0\analyzers\dotnet\cs\Microsoft.CodeAnalysis.Analyzers.dll" />

@@ -75,10 +75,24 @@
         {
             return new Context<T>(program, errorNumber, errorMessage);
         }
-
+            
         internal void AppendFeedback(string feedback)
         {
-            this.Feedback.Enqueue(feedback);
+            if (this.Feedback.Count == 0 || this.Feedback.Peek().EndsWith("\r\n"))
+                this.Feedback.Enqueue(feedback);
+            else if (feedback.EndsWith("\r\n"))
+                this.Feedback.Enqueue(feedback);
+            else if (feedback.IndexOf("\r\n", StringComparison.Ordinal) > -1)
+            {
+                var lines = feedback.Split(new[] { "\r\n" }, StringSplitOptions.None);
+                for (int i = 0; i < lines.Length; i++)
+                    if (i < lines.Length - 1)
+                        this.Feedback.Enqueue(lines[i] + "\r\n");
+                    else
+                        this.Feedback.Enqueue(lines[i]);
+            }
+            else
+                this.Feedback.Enqueue(feedback);
         }
 
         [NotNull]

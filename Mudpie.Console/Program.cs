@@ -13,7 +13,7 @@
 
     using log4net;
 
-    using Mudpie.Console.Scripting;
+    using Scripting;
 
     using Network;
 
@@ -103,7 +103,11 @@
                             using (var sr = new System.IO.StreamReader(file))
                             {
                                 var contents = await sr.ReadToEndAsync();
-                                await scriptingEngine.SaveProgramAsync(new Data.Program(System.IO.Path.GetFileNameWithoutExtension(file), contents, dir.Unauthenticated));
+                                bool interactive = contents.IndexOf("// INTERACTIVE", StringComparison.InvariantCultureIgnoreCase) > -1;
+                                await scriptingEngine.SaveProgramAsync(new Data.Program(System.IO.Path.GetFileNameWithoutExtension(file), contents, dir.Unauthenticated)
+                                {
+                                    Interactive = interactive
+                                });
                                 sr.Close();
                             }
                     

@@ -59,6 +59,12 @@ namespace Mudpie.Console.Data
         }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the program allows for capture of user input via 'read' commands in the script.
+        /// If this flag is not set on a program, it may produce output, but not accept any input.
+        /// </summary>
+        public bool Interactive { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether a user who has not yet authenticated can run the program
         /// </summary>
         public bool UnauthenticatedExecution { get; set; }
@@ -72,10 +78,12 @@ namespace Mudpie.Console.Data
                 var mscorlib = typeof(object).Assembly;
                 var systemCore = typeof(Enumerable).Assembly;
                 scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore);
-                
+
                 var roslynScript = CSharpScript
-                    .Create<T>("System.Console.SetOut(Feedback);", globalsType: typeof(Scripting.ContextGlobals))
-                    .ContinueWith<T>(this.ScriptSourceCodeLines.Aggregate((c, n) => c + n));
+                    .Create<T>("System.Console.SetOut(Feedback);", globalsType: typeof(Scripting.ContextGlobals));
+
+                foreach (var line in this.ScriptSourceCodeLines)
+                    roslynScript = roslynScript.ContinueWith<T>(line);
                 roslynScript.WithOptions(scriptOptions).Compile();
                 this._compiledScript = roslynScript;
             }

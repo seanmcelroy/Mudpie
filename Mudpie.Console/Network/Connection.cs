@@ -17,6 +17,7 @@ namespace Mudpie.Console.Network
     using log4net;
 
     using Data;
+    using System.Threading;
 
     internal class Connection
     {
@@ -189,9 +190,9 @@ namespace Mudpie.Console.Network
         #endregion
 
         #region IO and Connection Management
-        public async void Process()
+        public async void Process(CancellationToken cancellationToken = default(CancellationToken))
         {
-            await this.Send("200 Service available, posting allowed\r\n");
+            await this.SendAsync("200 Service available, posting allowed\r\n");
 
             Debug.Assert(this.stream != null, "The stream was 'null', but it should not have been because the connection was accepted and processing is beginning.");
 
@@ -257,7 +258,7 @@ namespace Mudpie.Console.Network
 
                                 var result = await CommandDirectory[command].Invoke(this, content);
 
-                                if (!result.IsHandled) await this.Send("500 Unknown command\r\n");
+                                if (!result.IsHandled) await this.SendAsync("500 Unknown command\r\n");
                                 else if (result.MessageHandler != null) this.inProcessCommand = result;
                                 else if (result.IsQuitting) return;
                             }
@@ -270,31 +271,31 @@ namespace Mudpie.Console.Network
                         }
                         else
                         {
-                            var context = await server.ScriptingEngine.RunProgramAsync<int>(command, this.Identity);
+                            var context = await server.ScriptingEngine.RunProgramAsync<int>(command, this.Identity, this, cancellationToken);
                             if (context == null || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
-                                await this.Send("Huh?\r\n");
+                                await this.SendAsync("Huh?\r\n");
                             else if (context.ErrorNumber == Scripting.ContextErrorNumber.AuthenticationRequired)
-                                await this.Send("You must be logged in to use that command.\r\n");
+                                await this.SendAsync("You must be logged in to use that command.\r\n");
                             else if (context.State == Scripting.ContextState.Aborted)
-                                await this.Send("Aborted.\r\n");
+                                await this.SendAsync("Aborted.\r\n");
                             else if (context.State == Scripting.ContextState.Errored)
-                                await this.Send($"ERROR: {context.ErrorMessage}\r\n");
+                                await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n");
                             else if (context.State == Scripting.ContextState.Killed)
-                                await this.Send($"KILLED: {context.ErrorMessage}\r\n");
+                                await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n");
                             else if (context.State == Scripting.ContextState.Loaded)
-                                await this.Send($"STUCK: {context.ProgramName} loaded but not completed.\r\n");
+                                await this.SendAsync($"STUCK: {context.ProgramName} loaded but not completed.\r\n");
                             else if (context.State == Scripting.ContextState.Paused)
-                                await this.Send($"Paused: {context.ProgramName}.\r\n");
+                                await this.SendAsync($"Paused: {context.ProgramName}.\r\n");
                             else if (context.State == Scripting.ContextState.Running)
-                                await this.Send($"Running... {context.ProgramName}.\r\n");
+                                await this.SendAsync($"Running... {context.ProgramName}.\r\n");
                             else if (context.State == Scripting.ContextState.Completed)
                             {
                                 // Write feedback to output
                                 if (context.Feedback.Count == 0)
-                                    await this.Send($"{context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
+                                    await this.SendAsync($"{context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
                                 else
                                     foreach (var line in context.Feedback)
-                                        await this.Send($"{line}\r\n");
+                                        await this.SendAsync($"{line}\r\n");
                             }
                         }
                     }
@@ -329,7 +330,7 @@ namespace Mudpie.Console.Network
             }
 
             if (send403)
-                await this.Send("403 Archive server temporarily offline\r\n");
+                await this.SendAsync("403 Archive server temporarily offline\r\n");
         }
 
         /// <summary>
@@ -339,12 +340,12 @@ namespace Mudpie.Console.Network
         /// <param name="args">The argument applied as a format string to <paramref name="format"/> to create the data to send to the client</param>
         /// <returns>A value indicating whether or not the transmission was successful</returns>
         [StringFormatMethod("format"), NotNull]
-        private async Task<bool> Send([NotNull] string format, [NotNull] params object[] args)
+        internal async Task<bool> SendAsync([NotNull] string format, [NotNull] params object[] args)
         {
-            return await this.SendInternal(string.Format(CultureInfo.InvariantCulture, format, args));
+            return await this.SendInternalAsync(string.Format(CultureInfo.InvariantCulture, format, args));
         }
 
-        private async Task<bool> SendInternal([NotNull] string data)
+        private async Task<bool> SendInternalAsync([NotNull] string data)
         {
             // Convert the string data to byte data using ASCII encoding.
             var byteData = Encoding.UTF8.GetBytes(data);
@@ -404,7 +405,7 @@ namespace Mudpie.Console.Network
         {
             if (this.client.Connected)
             {
-                await this.Send("205 closing connection\r\n");
+                await this.SendAsync("205 closing connection\r\n");
                 this.client.Client.Shutdown(SocketShutdown.Both);
                 this.client.Close();
             }
@@ -437,7 +438,7 @@ namespace Mudpie.Console.Network
             sb.Append("XFEATURE-COMPRESS GZIP TERMINATOR\r\n");
             sb.Append("IMPLEMENTATION McNNTP 1.0.0\r\n");
             sb.Append(".\r\n");
-            await this.Send(sb.ToString());
+            await this.SendAsync(sb.ToString());
             return new CommandProcessingResult(true);
         }
 
@@ -458,7 +459,7 @@ namespace Mudpie.Console.Network
             sb.Append("XFEATURE-COMPRESS GZIP TERMINATOR\r\n");
             sb.Append("IMPLEMENTATION McNNTP 1.0.0\r\n");
             sb.Append(".\r\n");
-            await this.Send(sb.ToString());
+            await this.SendAsync(sb.ToString());
             return new CommandProcessingResult(true);
         }
         #endregion

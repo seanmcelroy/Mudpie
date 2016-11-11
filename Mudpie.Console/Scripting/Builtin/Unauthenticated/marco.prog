@@ -1,0 +1,5 @@
+﻿// INTERACTIVE
+System.Console.WriteLine("Marco!");
+var input = System.Console.ReadLine();
+System.Console.WriteLine(input);
+return 0;
