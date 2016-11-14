@@ -46,7 +46,7 @@
                 var scriptGlobals = new ContextGlobals
                 {
                     EngineGlobals = this.engineGlobals,
-                    TriggerId = trigger?.Id,
+                    TriggerId = trigger?.DbRef,
                     TriggerName = trigger?.Name,
                     TriggerType = trigger is Player ? "PLAYER" : "?",
                     PlayerOutput = outputStreamWriter

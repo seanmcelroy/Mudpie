@@ -13,6 +13,10 @@ namespace Mudpie.Console.Data
 
     using JetBrains.Annotations;
 
+    using Mudpie.Scripting.Common;
+
+    using StackExchange.Redis.Extensions.Core;
+
     /// <summary>
     /// The base definition of any object in the MUD
     /// </summary>
@@ -40,10 +44,19 @@ namespace Mudpie.Console.Data
         }
 
         /// <summary>
-        /// Gets or sets the globally unique identifier of the object
+        /// Gets or sets the database reference of the object
         /// </summary>
         [NotNull]
-        public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public DbRef DbRef { get; set; } = -1;
+
+        /// <summary>
+        /// Gets or sets the globally unique identifier of the object
+        /// </summary>
+        /// <remarks>
+        /// This exists separate from a DBREF to allow for synchronization scenarios in the future
+        /// </remarks>
+        [NotNull]
+        public string InternalId { get; set; } = Guid.NewGuid().ToString("N");
 
         /// <summary>
         /// Gets or sets the name of the object
@@ -56,5 +69,28 @@ namespace Mudpie.Console.Data
         /// </summary>
         [CanBeNull]
         public string Description { get; set; }
+
+        /// <summary>
+        /// Gets or sets the location of this object
+        /// </summary>
+        [NotNull]
+        public DbRef Location { get; set; } = -1;
+
+        /// <summary>
+        /// Gets or sets the parent of this object, from which it inherits properties and verbs
+        /// </summary>
+        [NotNull]
+        public DbRef Parent { get; set; } = -1;
+
+        [NotNull]
+        public static T Create<T>([NotNull] ICacheClient redis) where T : ObjectBase, new()
+        {
+            var newObject = new T
+                                {
+                                    DbRef = Convert.ToInt32(redis.Database.StringIncrement("mudpie::dbref:counter"))
+                                };
+
+            return newObject;
+        }
     }
 }

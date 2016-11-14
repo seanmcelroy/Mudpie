@@ -13,6 +13,9 @@ namespace Mudpie.Console.Scripting
 
     using JetBrains.Annotations;
 
+    using Mudpie.Console.Data;
+    using Mudpie.Scripting.Common;
+
     /// <summary>
     /// Global context variables passed into a program execution context
     /// </summary>
@@ -36,7 +39,7 @@ namespace Mudpie.Console.Scripting
         /// <summary>
         /// Gets or sets the unique identifier of the <see cref="Data.ObjectBase"/> that triggered the program execution
         /// </summary>
-        public string TriggerId { get; internal set; }
+        public DbRef? TriggerId { get; internal set; }
 
         /// <summary>
         /// Gets or sets the type of the <see cref="Data.ObjectBase"/> that triggered the program execution

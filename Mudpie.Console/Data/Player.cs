@@ -8,6 +8,8 @@
 
     using JetBrains.Annotations;
 
+    using StackExchange.Redis.Extensions.Core;
+
     public class Player : ObjectBase
     {
         /// <summary>
@@ -29,6 +31,14 @@
         public string PasswordSalt { get; set; }
 
         public DateTime? LastLogin { get; set; }
+
+        public static Player Create([NotNull] ICacheClient redis, [NotNull] string name, [NotNull] string username)
+        {
+            var newPlayer = Create<Player>(redis);
+            newPlayer.Name = name;
+            newPlayer.Username = username;
+            return newPlayer;
+        }
 
         public void SetPassword(SecureString password)
         {
@@ -66,7 +76,7 @@
                 return false;
 
             // Return true if the fields match:
-            return this.Id == p.Id;
+            return this.InternalId == p.InternalId;
         }
 
         /// <summary>Serves as the default hash function. </summary>
@@ -74,7 +84,7 @@
         /// <filterpriority>2</filterpriority>
         public override int GetHashCode()
         {
-            return this.Id.GetHashCode();
+            return this.InternalId.GetHashCode();
         }
     }
 }

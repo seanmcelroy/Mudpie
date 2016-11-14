@@ -14,6 +14,8 @@
     using log4net;
     using log4net.Config;
 
+    using Mudpie.Scripting.Common;
+
     using Network;
 
     using Scripting;
@@ -41,14 +43,16 @@
             var config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
             var mudpieConfigurationSection = (MudpieConfigurationSection)config.GetSection("mudpie");
             _Logger.InfoFormat("Loaded configuration from {0}", config.FilePath);
-            
-            var godId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1).ToString("N");
+
             var godPlayer = new Player
-            {
-                Id = godId,
-                Name = "God",
-                Username = "god"
-            };
+                                {
+                                    DbRef = 2,
+                                    Description = "The Creator",
+                                    InternalId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2).ToString("N"),
+                                    Name = "God",
+                                    Username = "god",
+                                    Location = 1
+                                };
 
             using (var redis = new StackExchangeRedisCacheClient(new NewtonsoftSerializer()))
             {
@@ -57,26 +61,38 @@
                 // Seed data
                 Task.Run(async () =>
                     {
-                        if (!await redis.ExistsAsync("mudpie::rooms"))
+                        if (!await redis.ExistsAsync("mudpie::dbref:counter"))
                         {
                             Console.WriteLine("Redis database is not seeded with any data.  Creating seed data...");
-                            var voidId = Guid.Empty.ToString("N");
-                            var voidRoom = new Room
-                            {
-                                Id = voidId,
-                                Name = "The Void",
-                                Description = "An infinite emptiness of nothing."
-                            };
 
-                            await redis.SetAddAsync("mudpie::rooms", voidId);
-                            await redis.AddAsync($"mudpie::room:{voidId}", voidRoom);
+                            await redis.Database.StringSetAsync("mudpie::dbref:counter", 1);
+
+                            var voidId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1).ToString("N");
+                            var voidRoom = new Room
+                                               {
+                                                   DbRef = 1,
+                                                   InternalId = voidId,
+                                                   Name = "The Void",
+                                                   Description = "An infinite emptiness of nothing."
+                                               };
+
+                            await redis.SetAddAsync("mudpie::rooms", voidRoom.DbRef.ToString());
+                            await redis.AddAsync($"mudpie::room:{voidRoom.DbRef}", voidRoom);
 
                             var godPassword = new SecureString();
                             foreach (var c in "god")
                                 godPassword.AppendChar(c);
                             godPlayer.SetPassword(godPassword);
-                            await redis.SetAddAsync("mudpie::players", godId);
-                            await redis.AddAsync($"mudpie::player:{godId}", godPlayer);
+                            await redis.SetAddAsync("mudpie::players", godPlayer.DbRef.ToString());
+                            await redis.AddAsync($"mudpie::player:{godPlayer.DbRef}", godPlayer);
+                        }
+                        else
+                        {
+                            // Ensure we can read Void and God
+                            var voidRoom = redis.Get<Room>($"mudpie::room:{(DbRef)1}");
+                            Debug.Assert(voidRoom != null);
+                            godPlayer = redis.Get<Player>($"mudpie::player:{(DbRef)2}");
+                            Debug.Assert(godPlayer != null);
                         }
 
                         /*else

@@ -15,14 +15,24 @@ namespace Mudpie.Console.Data
     using System.Linq;
 
     using JetBrains.Annotations;
+
+    using log4net;
+
     using Microsoft.CodeAnalysis.CSharp.Scripting;
     using Microsoft.CodeAnalysis.Scripting;
+
+    using Mudpie.Scripting.Common;
 
     /// <summary>
     /// A program is a series of lines of code that can be executed within the MUD process
     /// </summary>
     public class Program : ObjectBase
     {
+        /// <summary>
+        /// The logging utility instance to use to log events from this class
+        /// </summary>
+        private static readonly ILog _Logger = LogManager.GetLogger(typeof(Program));
+        
         /// <summary>
         /// Once the script is compiled, the finished state is stored here for future executions
         /// </summary>
@@ -108,11 +118,16 @@ namespace Mudpie.Console.Data
         {
             if (this._compiledScript == null)
             {
+                _Logger.InfoFormat("Compiling program {0}... ", this.Name);
+                var sw = new Stopwatch();
+                sw.Start();
+
                 // Add references
                 var scriptOptions = ScriptOptions.Default;
                 var mscorlib = typeof(object).Assembly;
                 var systemCore = typeof(Enumerable).Assembly;
-                scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore);
+                var scriptingCommon = typeof(DbRef).Assembly;
+                scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore, scriptingCommon);
 
                 var roslynScript = CSharpScript
                     .Create<T>(";", globalsType: typeof(Scripting.ContextGlobals));
@@ -127,6 +142,9 @@ namespace Mudpie.Console.Data
                 Debug.Assert(roslynScript != null, "The script object must not be null after appending lines of source script");
                 roslynScript.WithOptions(scriptOptions).Compile();
                 this._compiledScript = roslynScript;
+
+                sw.Stop();
+                _Logger.InfoFormat("Compiled program {0} in {1:N2} seconds", this.Name, sw.Elapsed.TotalSeconds);
             }
 
             return (Script<T>)this._compiledScript;
