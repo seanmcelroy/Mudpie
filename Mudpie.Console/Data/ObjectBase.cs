@@ -64,6 +64,12 @@ namespace Mudpie.Console.Data
         public string Name { get; set; }
 
         /// <summary>
+        /// Gets or sets the aliases of this object
+        /// </summary>
+        [CanBeNull]
+        public string[] Aliases { get; set; }
+
+        /// <summary>
         /// Gets or sets the description of the object if a user were to observe it directly
         /// </summary>
         [CanBeNull]

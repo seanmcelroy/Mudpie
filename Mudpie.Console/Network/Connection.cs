@@ -29,6 +29,7 @@ namespace Mudpie.Console.Network
     using log4net;
 
     using Mudpie.Scripting.Common;
+    using System.Text.RegularExpressions;
 
     /// <summary>
     /// A persistent, accepted connection from a client computer to the network server process
@@ -273,6 +274,45 @@ namespace Mudpie.Console.Network
                     }
                     else
                     {
+                        #region Parse words into parts of speech
+                        var wordMatch = Regex.Match(content, @"([^\s]*(""[^""]*"")[^\s]*)|([^\s""]+)");
+                        if (!wordMatch.Success)
+                        {
+                            await this.SendAsync("What?\r\n");
+                            return;
+                        }
+                        
+                        var words = wordMatch.Groups.Cast<Group>().Where(g => g.Success).Select(g => g.Value.Replace("\"", "")).ToArray();
+                        var verb = words.ElementAtOrDefault(0);
+                        var prepositions = new[]
+                        {
+                            "with", "using", "at","to", "in front of","in", "inside","into","on top of","on","onto","upon","out of","from inside","from","over","through","under","underneath","beneath","behind","beside","for","about","off","off of"
+                        };
+
+                        string prep = null;
+                        int prepFoundStart = -1;
+                        foreach (var p in prepositions)
+                            if (content.IndexOf(p,verb.Length) > -1)
+                            {
+                                prep = p;
+                                prepFoundStart = content.IndexOf(prep, verb.Length);
+                                break;
+                            }
+
+                        string indirectObject = null;
+                        string directObject = null;
+                        if (prep != null)
+                        {
+                            directObject = content.Substring(verb.Length, prepFoundStart - verb.Length).Trim();
+                            indirectObject = content.Substring(prepFoundStart + prep.Length).Trim();
+                        }
+                        else
+                            directObject = content.Substring(verb.Length).Trim();
+
+                        await this.SendAsync($"VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}\r\n");
+                        #endregion
+
+
                         var command = content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant();
                         if (_BuiltInCommandDirectory.ContainsKey(command))
                         {
@@ -536,31 +576,5 @@ namespace Mudpie.Console.Network
         }
 
         #endregion
-
-        [CanBeNull, Pure]
-        private static Tuple<int, int?> ParseRange([NotNull] string input)
-        {
-            int low, high;
-            if (input.IndexOf('-') == -1)
-            {
-                return !int.TryParse(input, out low)
-                    ? default(Tuple<int, int?>)
-                    : new Tuple<int, int?>(low, low);
-            }
-
-            if (input.EndsWith("-", StringComparison.Ordinal))
-            {
-                return !int.TryParse(input, out low)
-                    ? default(Tuple<int, int?>)
-                    : new Tuple<int, int?>(low, null);
-            }
-
-            if (!int.TryParse(input.Substring(0, input.IndexOf('-')), NumberStyles.Integer, CultureInfo.InvariantCulture, out low))
-                return default(Tuple<int, int?>);
-            if (!int.TryParse(input.Substring(input.IndexOf('-') + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out high))
-                return default(Tuple<int, int?>);
-
-            return new Tuple<int, int?>(low, high);
-        }
     }
 }
