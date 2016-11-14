@@ -1,4 +1,13 @@
-﻿namespace Mudpie.Console.Scripting
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Context.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   An execution context instance of a <see cref="Script" /> running in an <see cref="Engine" />
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Scripting
 {
     using System;
     using System.Collections.Generic;
@@ -12,6 +21,7 @@
     /// <summary>
     /// An execution context instance of a <see cref="Script"/> running in an <see cref="Engine"/>
     /// </summary>
+    /// <typeparam name="T">The return type of the script</typeparam>
     internal class Context<T>
     {
         /// <summary>
@@ -33,6 +43,13 @@
             this.State = ContextState.Loaded;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Context{T}"/> class.
+        /// </summary>
+        /// <param name="program">The program that was executed</param>
+        /// <param name="errorNumber">The general category of error that occurred</param>
+        /// <param name="errorMessage">The specific error message that was recorded</param>
+        /// <exception cref="ArgumentNullException">Thrown when a null error message is supplied to this constructor</exception>
         private Context([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
         {
             if (string.IsNullOrWhiteSpace(errorMessage))
@@ -49,9 +66,15 @@
         /// </summary>
         public ContextState State { get; private set; }
 
+        /// <summary>
+        /// Gets the return value from the completed execution context
+        /// </summary>
         [CanBeNull]
         public T ReturnValue { get; private set; }
 
+        /// <summary>
+        /// Gets the general category of the error, if one was observed
+        /// </summary>
         [CanBeNull]
         public ContextErrorNumber? ErrorNumber { get; private set; }
 
@@ -64,17 +87,26 @@
         public string ProgramName => this._program?.Name;
 
         /// <summary>
-        /// Gets or sets the feedback provided by the output of the executing program
+        /// Gets the feedback provided by the output of the executing program
         /// </summary>
-        public Queue<string> Output { get; private set; } = new Queue<string>();
+        public Queue<string> Output { get; } = new Queue<string>();
 
+        /// <summary>
+        /// Crafts an execution context object that represents a failed execution due to an error condition
+        /// </summary>
+        /// <param name="program">The program that was executed</param>
+        /// <param name="errorNumber">The general category of error that occurred</param>
+        /// <param name="errorMessage">The specific error message that was recorded</param>
+        /// <returns>
+        /// The <see cref="Scripting.Context{T}"/> object representing the error conditions
+        /// </returns>
         [NotNull, Pure]
         public static Context<T> Error([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
         {
             return new Context<T>(program, errorNumber, errorMessage);
         }
             
-        internal void AppendFeedback(string feedback)
+        internal void AppendFeedback([NotNull] string feedback)
         {
             if (this.Output.Count == 0 || this.Output.Peek().EndsWith("\r\n"))
                 this.Output.Enqueue(feedback);
@@ -97,7 +129,8 @@
         public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken = default(CancellationToken))
         {
             this.State = ContextState.Running;
-            try {
+            try
+            {
                 var state = await this._program.Compile<T>().RunAsync(globals, cancellationToken);
                 this.ReturnValue = state.ReturnValue;
                 this.State = ContextState.Completed;

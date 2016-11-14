@@ -1,4 +1,14 @@
-﻿namespace Mudpie.Console.Network
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Server.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   The server is the holder of <see cref="Listener" /> and <see cref="Connection" /> objects used to manage network communications
+//   with players
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Network
 {
     using System;
     using System.Collections.Generic;
@@ -15,27 +25,40 @@
 
     using log4net;
 
-    class Server
+    /// <summary>
+    /// The server is the holder of <see cref="Listener"/> and <see cref="Connection"/> objects used to manage network communications
+    /// with players
+    /// </summary>
+    internal class Server
     {
         /// <summary>
         /// The logging utility instance to use to log events from this class
         /// </summary>
+        [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog _Logger = LogManager.GetLogger(typeof(Server));
 
         /// <summary>
         /// A list of threads and the associated TCP new-connection listeners that are serviced by each by the client
         /// </summary>
+        [NotNull]
         private readonly List<Tuple<Thread, Listener>> _listeners = new List<Tuple<Thread, Listener>>();
 
         /// <summary>
         /// A list of connections currently established to this server instance
         /// </summary>
+        [NotNull]
         private readonly List<Connection> _connections = new List<Connection>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Server"/> class.
         /// </summary>
-        /// <param name="clearPorts">The ports over which clear-text communications are permitted</param>
+        /// <param name="clearPorts">
+        /// The ports over which clear-text communications are permitted
+        /// </param>
+        /// <param name="scriptingEngine">
+        /// The scripting engine used to execute programs invoked or triggered by the user
+        /// </param>
         public Server([NotNull] int[] clearPorts, [NotNull] Scripting.Engine scriptingEngine)
         {
             if (clearPorts == null)
@@ -49,13 +72,7 @@
         }
 
         /// <summary>
-        /// Gets or sets the ports over which clear-text communications are permitted
-        /// </summary>
-        [NotNull]
-        public int[] ClearPorts { get; private set; }
-
-        /// <summary>
-        /// Gets or sets the scripting engine that will handle commands sent by connections to the server
+        /// Gets the scripting engine that will handle commands sent by connections to the server
         /// </summary>
         [NotNull]
         internal Scripting.Engine ScriptingEngine { get; private set; }
@@ -104,6 +121,12 @@
         [CanBeNull]
         internal X509Certificate2 ServerAuthenticationCertificate { get; private set; }
 
+        /// <summary>
+        /// Gets the ports over which clear-text communications are permitted
+        /// </summary>
+        [NotNull]
+        private int[] ClearPorts { get; }
+
         #region Connection and IO
         /// <summary>
         /// Starts listener threads to begin processing requests
@@ -133,8 +156,11 @@
             {
                 try
                 {
-                    listener.Item1.Start();
-                    _Logger.InfoFormat("Listening on port {0} ({1})", ((IPEndPoint)listener.Item2.LocalEndpoint).Port, listener.Item2.PortType);
+                    if (listener.Item1 != null)
+                    {
+                        listener.Item1.Start();
+                        _Logger.InfoFormat("Listening on port {0} ({1})", ((IPEndPoint)listener.Item2.LocalEndpoint).Port, listener.Item2.PortType);
+                    }
                 }
                 catch (OutOfMemoryException oom)
                 {
@@ -158,13 +184,13 @@
                 }
             }
 
-            Task.WaitAll(this._connections.Select(connection => connection.Shutdown()).ToArray());
+            Task.WaitAll(this._connections.Select(connection => connection?.Shutdown()).ToArray());
 
             foreach (var thread in this._listeners)
             {
                 try
                 {
-                    thread.Item1.Abort();
+                    thread.Item1?.Abort();
                 }
                 catch (SecurityException se)
                 {

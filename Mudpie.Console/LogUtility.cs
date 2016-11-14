@@ -30,8 +30,8 @@ namespace Mudpie.Console
         [PublicAPI]
         public static void Trace([NotNull] this ILog log, [NotNull] string message)
         {
-            log.Logger.Log(
-                MethodBase.GetCurrentMethod().DeclaringType,
+            log.Logger?.Log(
+                MethodBase.GetCurrentMethod()?.DeclaringType,
                 log4net.Core.Level.Trace,
                 message,
                 null);
@@ -61,8 +61,8 @@ namespace Mudpie.Console
         [PublicAPI]
         public static void Verbose([NotNull] this ILog log, [NotNull] string message)
         {
-            log.Logger.Log(
-                MethodBase.GetCurrentMethod().DeclaringType,
+            log.Logger?.Log(
+                MethodBase.GetCurrentMethod()?.DeclaringType,
                 log4net.Core.Level.Verbose,
                 message,
                 null);
@@ -78,7 +78,7 @@ namespace Mudpie.Console
         /// <exception cref="ArgumentNullException">Thrown when the format string is null</exception>
         /// <exception cref="FormatException">Thrown when the format string and associated arguments cannot be used to create a formatted message</exception>
         [PublicAPI]
-        public static void VerboseFormat(this ILog log, [NotNull] string format, [NotNull] params object[] args)
+        public static void VerboseFormat([NotNull] this ILog log, [NotNull] string format, [NotNull] params object[] args)
         {
             log.Verbose(string.Format(format, args));
         }

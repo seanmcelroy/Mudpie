@@ -19,15 +19,26 @@ namespace Mudpie.Console
     /// </summary>
     internal sealed class CommandProcessingResult
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CommandProcessingResult"/> class.
+        /// </summary>
+        /// <param name="isHandled">Whether or not the original input was handled by the code returning this result</param>
+        /// <param name="isQuitting">Whether or not the client is quitting</param>
         public CommandProcessingResult(bool isHandled, bool isQuitting = false)
         {
             this.IsHandled = isHandled;
             this.IsQuitting = isQuitting;
         }
 
-        public bool IsHandled { get; set; }
+        /// <summary>
+        /// Gets a value indicating whether or not the original input was handled by the code returning this result
+        /// </summary>
+        public bool IsHandled { get; private set; }
 
-        public bool IsQuitting { get; set; }
+        /// <summary>
+        /// Gets a value indicating whether or not the client is quitting
+        /// </summary>
+        public bool IsQuitting { get; private set; }
 
         /// <summary>
         /// Gets or sets a value that, if not null, indicates the request was the 

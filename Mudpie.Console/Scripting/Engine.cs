@@ -1,4 +1,13 @@
-﻿namespace Mudpie.Console.Scripting
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Engine.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   The scripting engine is the master factory of execution contexts for asynchronously running programs in the MUD
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Scripting
 {
     using System.IO;
     using System.Threading;
@@ -9,22 +18,31 @@
     using JetBrains.Annotations;
 
     using StackExchange.Redis.Extensions.Core;
-
+    
+    /// <summary>
+    /// The scripting engine is the master factory of execution contexts for asynchronously running programs in the MUD
+    /// </summary>
     internal class Engine
     {
         /// <summary>
         /// The underlying Redis data store client
         /// </summary>
         [NotNull]
-        private readonly ICacheClient redis;
+        private readonly ICacheClient _redis;
 
-        [CanBeNull]
-        private object engineGlobals;
-
-        public Engine([NotNull] ICacheClient redis, [CanBeNull] object engineGlobals = null)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Engine"/> class.
+        /// </summary>
+        /// <param name="redis">The client to access the data store</param>
+        public Engine([NotNull] ICacheClient redis)
         {
-            this.redis = redis;
+            this._redis = redis;
         }
+        
+        /// <summary>
+        /// Gets the Redis instance used by the engine
+        /// </summary>
+        internal ICacheClient Redis => this._redis;
 
         [NotNull, ItemNotNull]
         public async Task<Context<T>> RunProgramAsync<T>([NotNull] string programName, [CanBeNull] ObjectBase trigger, [CanBeNull] Network.Connection connection, CancellationToken cancellationToken = default(CancellationToken))
@@ -48,7 +66,6 @@
             {
                 var scriptGlobals = new ContextGlobals
                 {
-                    EngineGlobals = this.engineGlobals,
                     TriggerId = trigger?.DbRef,
                     TriggerName = trigger?.Name,
                     TriggerType = trigger is Player ? "PLAYER" : "?",
@@ -58,7 +75,8 @@
                 var outputLastPositionRead = 0L;
 
                 // OUTPUT
-                var appendOutputTask = new Task(async () =>
+                var appendOutputTask = new Task(
+                    async () =>
                 {
                     while (context.State == ContextState.Loaded || context.State == ContextState.Running)
                     {
@@ -77,11 +95,17 @@
 
                             // Send output to trigger, if capable of receiving.
                             while (connection != null && context.Output.Count > 0)
-                                await connection.SendAsync(context.Output.Dequeue());
+                            {
+                                var nextOutput = context.Output.Dequeue();
+                                if (nextOutput != null)
+                                    await connection.SendAsync(nextOutput);
+                            }
                         }
+
                         Thread.Sleep(100);
                     }
-                }, outputCancellationTokenSource.Token);
+                }, 
+                outputCancellationTokenSource.Token);
                 appendOutputTask.Start();
 
                 // INPUT
@@ -129,10 +153,11 @@
         /// </summary>
         /// <param name="programName">The name of the <see cref="Data.Program"/> to search for in the data store</param>
         /// <returns><see cref="System.Boolean.True"/> if the program with the specified <paramref name="programName"/> was found in the data store; otherwise, <see cref="System.Boolean.False"/></returns>
+        [NotNull]
         public async Task<bool> ProgramExistsAsync([NotNull] string programName)
         {
             var normalizedProgramName = programName.ToLowerInvariant();
-            return await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}");
+            return await this._redis.ExistsAsync($"mudpie::program:{normalizedProgramName}");
         }
 
         /// <summary>
@@ -145,8 +170,8 @@
         {
             var normalizedProgramName = programName.ToLowerInvariant();
 
-            if (await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
-                return await this.redis.GetAsync<Program>($"mudpie::program:{normalizedProgramName}");
+            if (await this._redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
+                return await this._redis.GetAsync<Program>($"mudpie::program:{normalizedProgramName}");
 
             return null;
         }
@@ -157,20 +182,15 @@
             var normalizedProgramName = program.Name.ToLowerInvariant();
 
             // ReSharper disable once PossibleNullReferenceException
-            if (await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
+            if (await this._redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
                 // ReSharper disable once PossibleNullReferenceException
-                await this.redis.ReplaceAsync($"mudpie::program:{normalizedProgramName}", program);
+                await this._redis.ReplaceAsync($"mudpie::program:{normalizedProgramName}", program);
             else
                 // ReSharper disable once PossibleNullReferenceException
-                await this.redis.AddAsync($"mudpie::program:{normalizedProgramName}", program);
+                await this._redis.AddAsync($"mudpie::program:{normalizedProgramName}", program);
 
             // ReSharper disable once PossibleNullReferenceException
-            await this.redis.SetAddAsync("mudpie::programs", normalizedProgramName);
+            await this._redis.SetAddAsync("mudpie::programs", normalizedProgramName);
         }
-
-        /// <summary>
-        /// Gets the Redis instance used by the engine
-        /// </summary>
-        internal ICacheClient Redis => this.redis;
     }
 }

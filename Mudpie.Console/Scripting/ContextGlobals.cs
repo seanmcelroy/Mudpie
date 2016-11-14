@@ -31,30 +31,27 @@ namespace Mudpie.Console.Scripting
         }
 
         /// <summary>
-        /// Gets global variables provided by the running engine, global to the whole MUD instance
-        /// </summary>
-        public object EngineGlobals { get; internal set; }
-
-        /// <summary>
-        /// Gets or sets the unique identifier of the <see cref="Data.ObjectBase"/> that triggered the program execution
+        /// Gets the unique identifier of the <see cref="Data.ObjectBase"/> that triggered the program execution
         /// </summary>
         public DbRef? TriggerId { get; internal set; }
 
         /// <summary>
-        /// Gets or sets the type of the <see cref="Data.ObjectBase"/> that triggered the program execution
+        /// Gets the type of the <see cref="Data.ObjectBase"/> that triggered the program execution
         /// </summary>
         /// <example>
         /// Sample values are PLAYER and EXIT
         /// </example>
+        [CanBeNull]
         public string TriggerType { get; internal set; }
 
         /// <summary>
-        /// Gets or sets the name of the <see cref="Data.ObjectBase"/> that triggered the program execution
+        /// Gets the name of the <see cref="Data.ObjectBase"/> that triggered the program execution
         /// </summary>
+        [CanBeNull]
         public string TriggerName { get; internal set; }
 
         /// <summary>
-        /// Gets or sets a text writer that can be used to send information back to the triggering object.
+        /// Gets a text writer that can be used to send information back to the triggering object.
         /// </summary>
         [CanBeNull]
         public TextWriter PlayerOutput { get; internal set; }

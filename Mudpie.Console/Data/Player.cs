@@ -1,6 +1,16 @@
-﻿namespace Mudpie.Console.Data
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Player.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   A player is a general thing that represents the character owned and controlled by a real user
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Data
 {
     using System;
+    using System.Diagnostics;
     using System.Runtime.InteropServices;
     using System.Security;
     using System.Security.Cryptography;
@@ -12,6 +22,9 @@
 
     using StackExchange.Redis.Extensions.Core;
 
+    /// <summary>
+    /// A player is a general thing that represents the character owned and controlled by a real user
+    /// </summary>
     public class Player : ObjectBase
     {
         /// <summary>
@@ -52,6 +65,7 @@
         {
             var saltBytes = new byte[64];
             var rng = RandomNumberGenerator.Create();
+            Debug.Assert(rng != null, "rng != null");
             rng.GetNonZeroBytes(saltBytes);
             var salt = Convert.ToBase64String(saltBytes);
             var bstr = Marshal.SecureStringToBSTR(password);
@@ -66,7 +80,16 @@
             }
         }
 
-        internal bool VerifyPassword(SecureString attempt)
+        /// <summary>
+        /// Verifies a password attempt against the hashed password stored for the user
+        /// </summary>
+        /// <param name="attempt">
+        /// The password we are attempting to verify as the same
+        /// </param>
+        /// <returns>
+        /// True if the password attempt provided matches the password hash for the player; otherwise, false.
+        /// </returns>
+        internal bool VerifyPassword([NotNull] SecureString attempt)
         {
             var bstr = Marshal.SecureStringToBSTR(attempt);
             try

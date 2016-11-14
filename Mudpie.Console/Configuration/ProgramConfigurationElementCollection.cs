@@ -41,7 +41,7 @@ namespace Mudpie.Console.Configuration
 
         /// <inheritdoc />
         [UsedImplicitly]
-        public void Add(ProgramConfigurationElement serviceConfig) => this.BaseAdd(serviceConfig);
+        public void Add([NotNull] ProgramConfigurationElement serviceConfig) => this.BaseAdd(serviceConfig);
 
         /// <inheritdoc />
         [UsedImplicitly]

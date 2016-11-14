@@ -28,7 +28,7 @@ namespace Mudpie.Console.Scripting
         /// The wait handle used to block on the entering of a CRLF from the player
         /// </summary>
         [NotNull]
-        private readonly AutoResetEvent crLfWaitHandle = new AutoResetEvent(false);
+        private readonly AutoResetEvent _waitHandle = new AutoResetEvent(false);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PlayerInputStreamReader"/> class.
@@ -41,45 +41,45 @@ namespace Mudpie.Console.Scripting
         /// <inheritdoc />
         public override int Read()
         {
-            this.crLfWaitHandle.WaitOne();
+            this._waitHandle.WaitOne();
             var ret = base.Read();
-            this.crLfWaitHandle.Reset();
+            this._waitHandle.Reset();
             return ret;
         }
 
         /// <inheritdoc />
         public override int Read(char[] buffer, int index, int count)
         {
-            this.crLfWaitHandle.WaitOne();
+            this._waitHandle.WaitOne();
             var ret = base.Read(buffer, index, count);
-            this.crLfWaitHandle.Reset();
+            this._waitHandle.Reset();
             return ret;
         }
 
         /// <inheritdoc />
         public override async Task<int> ReadAsync(char[] buffer, int index, int count)
         {
-            this.crLfWaitHandle.WaitOne();
+            this._waitHandle.WaitOne();
             var ret = await base.ReadAsync(buffer, index, count);
-            this.crLfWaitHandle.Reset();
+            this._waitHandle.Reset();
             return ret;
         }
 
         /// <inheritdoc />
         public override int ReadBlock(char[] buffer, int index, int count)
         {
-            this.crLfWaitHandle.WaitOne();
+            this._waitHandle.WaitOne();
             var ret = base.ReadBlock(buffer, index, count);
-            this.crLfWaitHandle.Reset();
+            this._waitHandle.Reset();
             return ret;
         }
 
         /// <inheritdoc />
         public override async Task<int> ReadBlockAsync(char[] buffer, int index, int count)
         {
-            this.crLfWaitHandle.WaitOne();
+            this._waitHandle.WaitOne();
             var ret = await base.ReadBlockAsync(buffer, index, count);
-            this.crLfWaitHandle.Reset();
+            this._waitHandle.Reset();
             return ret;
         }
 
@@ -87,36 +87,36 @@ namespace Mudpie.Console.Scripting
         public override string ReadLine()
         {
             this.BaseStream.Position = 0;
-            this.crLfWaitHandle.WaitOne();
+            this._waitHandle.WaitOne();
             var ret = base.ReadLine();
-            this.crLfWaitHandle.Reset();
+            this._waitHandle.Reset();
             return ret;
         }
 
         /// <inheritdoc />
         public override async Task<string> ReadLineAsync()
         {
-            this.crLfWaitHandle.WaitOne();
+            this._waitHandle.WaitOne();
             var ret = await base.ReadLineAsync();
-            this.crLfWaitHandle.Reset();
+            this._waitHandle.Reset();
             return ret;
         }
 
         /// <inheritdoc />
         public override string ReadToEnd()
         {
-            this.crLfWaitHandle.WaitOne();
+            this._waitHandle.WaitOne();
             var ret = base.ReadToEnd();
-            this.crLfWaitHandle.Reset();
+            this._waitHandle.Reset();
             return ret;
         }
 
         /// <inheritdoc />
         public override async Task<string> ReadToEndAsync()
         {
-            this.crLfWaitHandle.WaitOne();
+            this._waitHandle.WaitOne();
             var ret = await base.ReadToEndAsync();
-            this.crLfWaitHandle.Reset();
+            this._waitHandle.Reset();
             return ret;
         }
 
@@ -135,7 +135,7 @@ namespace Mudpie.Console.Scripting
             var bytes = ((MemoryStream)this.BaseStream).ToArray();
             var str = encoding.GetString(bytes);
             if (str.IndexOf("\r\n", StringComparison.Ordinal) > -1)
-                this.crLfWaitHandle.Set();
+                this._waitHandle.Set();
             else
                 throw new InvalidOperationException();
         }

@@ -137,18 +137,27 @@ namespace Mudpie.Console.Network
             this.LocalPort = localIpEndpoint.Port;
         }
 
-        public bool ShowBytes { get; set; }
+        /// <summary>
+        /// Gets a value indicating whether the byte transmitted counts are logged to the logging instance
+        /// </summary>
+        private bool ShowBytes { get; }
 
-        public bool ShowCommands { get; set; }
+        /// <summary>
+        /// Gets a value indicating whether the commands transmitted are logged to the logging instance
+        /// </summary>
+        private bool ShowCommands { get; }
 
-        public bool ShowData { get; set; }
+        /// <summary>
+        /// Gets a value indicating whether the actual bytes (data) transmitted are logged to the logging instance
+        /// </summary>
+        private bool ShowData { get; }
 
         #region Authentication
         [CanBeNull]
         public string Username { get; set; }
 
         [CanBeNull]
-        public Player Identity { get; set; }
+        public Player Identity { get; private set; }
         #endregion
 
         /// <summary>
@@ -292,7 +301,8 @@ namespace Mudpie.Console.Network
                         {
                             // Spawn the program as an asychronous task (no await) so input can still be processed on this connection
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                            Task.Factory.StartNew(async () =>
+                            Task.Factory.StartNew(
+                                async () =>
                                 {
                                     var context = await this._server.ScriptingEngine.RunProgramAsync<int>(command, this.Identity, this, cancellationToken);
                                     if (context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
@@ -468,8 +478,11 @@ namespace Mudpie.Console.Network
         /// Handles the CONNECT command from a client, which allows a client to authenticate against an existing
         /// player record for a username and a password
         /// </summary>
-        /// <returns>A command processing result specifying the command is handled.</returns>
-        private async Task<CommandProcessingResult> ConnectAsync(string data)
+        /// <param name="data">The full data line received from the client</param>
+        /// <returns>
+        /// A command processing result specifying the command is handled.
+        /// </returns>
+        private async Task<CommandProcessingResult> ConnectAsync([NotNull] string data)
         {
             var match = System.Text.RegularExpressions.Regex.Match(data, @"(CONNECT|connect)\s+(?<username>[^\s]+)\s(?<password>[^\r\n]+)");
             if (!match.Success)

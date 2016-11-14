@@ -1,4 +1,13 @@
-﻿namespace Mudpie.Console.Network
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="ConnectionMetadata.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   Metadata about a connection from a client to the server instance
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Network
 {
     using System;
     using System.Net;
@@ -8,6 +17,7 @@
     /// <summary>
     /// Metadata about a connection from a client to the server instance
     /// </summary>
+    [PublicAPI]
     internal class ConnectionMetadata
     {
         /// <summary>

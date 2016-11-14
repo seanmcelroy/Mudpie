@@ -33,8 +33,7 @@
         /// <summary>
         /// Entry point of the application
         /// </summary>
-        /// <param name="args">Command line arguments for the console application</param>
-        public static void Main(string[] args)
+        public static void Main()
         {
             // Setup LOG4NET
             XmlConfigurator.Configure();
@@ -92,10 +91,10 @@
                         {
                             // Ensure we can read Void and God
                             var voidRoom = redis.Get<Room>($"mudpie::room:{(DbRef)1}");
-                            Debug.Assert(voidRoom != null);
+                            Debug.Assert(voidRoom != null, "voidRoom != null");
 
                             godPlayer = Player.Get(redis, 2);
-                            Debug.Assert(godPlayer != null);
+                            Debug.Assert(godPlayer != null, "godPlayer != null");
                         }
 
                         /*else
@@ -136,10 +135,6 @@
                                 sr.Close();
                             }
                         }
-
-                        //await engine.SaveProgramAsync(new Data.Program("test", "int x = 1;int y = 2;return x + y;"));
-                    //var result = await engine.RunProgramAsync<int>("test", godPlayer);
-                    //Console.WriteLine(result.ReturnValue);
                     });
                 scriptEngineTask.Wait();
 
@@ -151,7 +146,6 @@
                                      ShowData = true
                                  };
                 server.Start();
-
 
                 Console.ReadLine();
             }

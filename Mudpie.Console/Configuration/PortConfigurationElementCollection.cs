@@ -22,6 +22,7 @@ namespace Mudpie.Console.Configuration
     public class PortConfigurationElementCollection : ConfigurationElementCollection, IEnumerable<PortConfigurationElement>
     {
         /// <inheritdoc />
+        [UsedImplicitly]
         public PortConfigurationElement this[int index]
         {
             get
@@ -39,18 +40,23 @@ namespace Mudpie.Console.Configuration
         }
 
         /// <inheritdoc />
+        [UsedImplicitly]
         public void Add([NotNull] PortConfigurationElement serviceConfig) => this.BaseAdd(serviceConfig);
 
         /// <inheritdoc />
+        [UsedImplicitly]
         public void Clear() => this.BaseClear();
 
         /// <inheritdoc />
+        [UsedImplicitly]
         public void Remove([NotNull] PortConfigurationElement serviceConfig) => this.BaseRemove(serviceConfig.Port.ToString(CultureInfo.InvariantCulture));
 
         /// <inheritdoc />
+        [UsedImplicitly]
         public void RemoveAt(int index) => this.BaseRemoveAt(index);
 
         /// <inheritdoc />
+        [UsedImplicitly]
         public void Remove([NotNull] string name) => this.BaseRemove(name);
 
         /// <inheritdoc />

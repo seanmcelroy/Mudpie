@@ -98,7 +98,6 @@ namespace Mudpie.Console.Network
 
                     connection.Process();
                 }
-
             }
             catch (Exception ex)
             {
