@@ -8,6 +8,8 @@
 
     using JetBrains.Annotations;
 
+    using Mudpie.Scripting.Common;
+
     using StackExchange.Redis.Extensions.Core;
 
     public class Player : ObjectBase
@@ -40,7 +42,13 @@
             return newPlayer;
         }
 
-        public void SetPassword(SecureString password)
+        [CanBeNull, Pure]
+        public static Player Get([NotNull] ICacheClient redis, DbRef playerRef)
+        {
+            return redis.Get<Player>($"mudpie::player:{playerRef}");
+        }
+
+        internal void SetPassword([NotNull] SecureString password)
         {
             var saltBytes = new byte[64];
             var rng = RandomNumberGenerator.Create();
@@ -51,6 +59,20 @@
             {
                 this.PasswordHash = Convert.ToBase64String(new SHA512CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Concat(salt, Marshal.PtrToStringBSTR(bstr)))));
                 this.PasswordSalt = salt;
+            }
+            finally
+            {
+                Marshal.FreeBSTR(bstr);
+            }
+        }
+
+        internal bool VerifyPassword(SecureString attempt)
+        {
+            var bstr = Marshal.SecureStringToBSTR(attempt);
+            try
+            {
+                var attemptPasswordHash = Convert.ToBase64String(new SHA512CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Concat(this.PasswordSalt, Marshal.PtrToStringBSTR(bstr)))));
+                return string.Compare(attemptPasswordHash, this.PasswordHash, StringComparison.Ordinal) == 0;
             }
             finally
             {

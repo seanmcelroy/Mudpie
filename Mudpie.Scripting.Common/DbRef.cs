@@ -55,7 +55,7 @@ namespace Mudpie.Scripting.Common
         [NotNull, Pure]
         public static implicit operator string(DbRef reference)
         {
-            return reference._referenceNumber.ToString(@"\###000000");
+            return "#" + reference._referenceNumber.ToString(@"##000000");
         }
 
         /// <summary>
@@ -65,7 +65,8 @@ namespace Mudpie.Scripting.Common
         public static implicit operator DbRef(string referenceString)
         {
             if (string.IsNullOrWhiteSpace(referenceString))
-                throw new ArgumentException($"Unable to parse string {referenceString} as a DBREF", nameof(referenceString));
+                return NOTHING;
+
             if (!referenceString.StartsWith("#"))
                 throw new ArgumentException($"Unable to parse string {referenceString} as a DBREF; does not start with a #", nameof(referenceString));
 
@@ -113,7 +114,7 @@ namespace Mudpie.Scripting.Common
         /// <returns>
         /// True if the instances are the same number; otherwise, false.
         /// </returns>
-        [PublicAPI]
+        [PublicAPI, Pure]
         public bool Equals(DbRef? obj)
         {
             return obj?._referenceNumber == this._referenceNumber;

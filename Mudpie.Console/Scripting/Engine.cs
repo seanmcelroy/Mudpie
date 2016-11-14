@@ -160,5 +160,10 @@
 
             await this.redis.SetAddAsync("mudpie::programs", normalizedProgramName);
         }
+
+        /// <summary>
+        /// Gets the Redis instance used by the engine
+        /// </summary>
+        internal ICacheClient Redis => this.redis;
     }
 }

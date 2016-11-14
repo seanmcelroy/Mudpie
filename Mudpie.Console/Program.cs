@@ -76,22 +76,25 @@
                                                    Description = "An infinite emptiness of nothing."
                                                };
 
-                            await redis.SetAddAsync("mudpie::rooms", voidRoom.DbRef.ToString());
+                            await redis.SetAddAsync<string>("mudpie::rooms", voidRoom.DbRef);
                             await redis.AddAsync($"mudpie::room:{voidRoom.DbRef}", voidRoom);
 
                             var godPassword = new SecureString();
                             foreach (var c in "god")
                                 godPassword.AppendChar(c);
                             godPlayer.SetPassword(godPassword);
-                            await redis.SetAddAsync("mudpie::players", godPlayer.DbRef.ToString());
+                            await redis.SetAddAsync<string>("mudpie::players", godPlayer.DbRef);
                             await redis.AddAsync($"mudpie::player:{godPlayer.DbRef}", godPlayer);
+
+                            await redis.HashSetAsync("mudpie::usernames", godPlayer.Username.ToLowerInvariant(), godPlayer.DbRef);
                         }
                         else
                         {
                             // Ensure we can read Void and God
                             var voidRoom = redis.Get<Room>($"mudpie::room:{(DbRef)1}");
                             Debug.Assert(voidRoom != null);
-                            godPlayer = redis.Get<Player>($"mudpie::player:{(DbRef)2}");
+
+                            godPlayer = Player.Get(redis, 2);
                             Debug.Assert(godPlayer != null);
                         }
 
@@ -150,7 +153,7 @@
                 server.Start();
 
 
-                System.Console.ReadLine();
+                Console.ReadLine();
             }
         }
     }

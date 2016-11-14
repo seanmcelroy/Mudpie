@@ -29,7 +29,7 @@ namespace Mudpie.Scripting.Common
         {
             var token = JToken.Load(reader);
             Debug.Assert(token != null, "token != null");
-            var dbref = token.ToString();
+            var dbref = (DbRef)token.ToString();
             return dbref;
         }
 

@@ -46,7 +46,6 @@ namespace Mudpie.Console.Data
         /// <summary>
         /// Gets or sets the database reference of the object
         /// </summary>
-        [NotNull]
         public DbRef DbRef { get; set; } = -1;
 
         /// <summary>
@@ -73,14 +72,12 @@ namespace Mudpie.Console.Data
         /// <summary>
         /// Gets or sets the location of this object
         /// </summary>
-        [NotNull]
-        public DbRef Location { get; set; } = -1;
+        public DbRef Location { get; set; } = DbRef.NOTHING;
 
         /// <summary>
         /// Gets or sets the parent of this object, from which it inherits properties and verbs
         /// </summary>
-        [NotNull]
-        public DbRef Parent { get; set; } = -1;
+        public DbRef Parent { get; set; } = DbRef.NOTHING;
 
         [NotNull]
         public static T Create<T>([NotNull] ICacheClient redis) where T : ObjectBase, new()

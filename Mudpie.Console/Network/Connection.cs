@@ -8,6 +8,7 @@
     using System.Linq;
     using System.Net;
     using System.Net.Sockets;
+    using System.Security;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
@@ -17,6 +18,8 @@
     using JetBrains.Annotations;
 
     using log4net;
+
+    using Mudpie.Scripting.Common;
 
     internal class Connection
     {
@@ -107,7 +110,7 @@
         {
             _BuiltInCommandDirectory = new Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>>
                 {
-                    { "CAPABILITIES", async (c, data) => await c.Capabilities() }
+                    { "CONNECT", async (c, data) => await c.ConnectAsync(data) }
                 };
         }
 
@@ -472,29 +475,60 @@
         #region Commands
 
         /// <summary>
-        /// Handles the CAPABILITIES command from a client, which allows a client to retrieve a list
-        /// of the functionality available in this server. 
+        /// Handles the CONNECT command from a client, which allows a client to authenticate against an existing
+        /// player record for a username and a password
         /// </summary>
         /// <returns>A command processing result specifying the command is handled.</returns>
-        /// <remarks>See <a href="http://tools.ietf.org/html/rfc3977#section-5.2">RFC 3977</a> for more information.</remarks>
-        private async Task<CommandProcessingResult> Capabilities()
+        private async Task<CommandProcessingResult> ConnectAsync(string data)
         {
-            var sb = new StringBuilder();
-            sb.Append("101 Capability list:\r\n");
-            sb.Append("VERSION 2\r\n");
+            var match = System.Text.RegularExpressions.Regex.Match(data, @"(CONNECT|connect)\s+(?<username>[^\s]+)\s(?<password>[^\r\n]+)");
+            if (!match.Success)
+            {
+                await this.SendAsync("Either that player does not exist, or has a different password. #001\r\n");
+                return new CommandProcessingResult(true);
+            }
 
-            // sb.Append("IHAVE\r\n");
-            sb.Append("HDR\r\n");
-            sb.Append("LIST ACTIVE NEWSGROUPS ACTIVE.TIMES DISTRIB.PATS HEADERS OVERVIEW.FMT\r\n");
-            sb.Append("MODE-READER\r\n");
-            sb.Append("NEWNEWS\r\n");
-            sb.Append("OVER MSGID\r\n");
-            sb.Append("POST\r\n");
-            sb.Append("READER\r\n");
-            sb.Append("XFEATURE-COMPRESS GZIP TERMINATOR\r\n");
-            sb.Append("IMPLEMENTATION McNNTP 1.0.0\r\n");
-            sb.Append(".\r\n");
-            await this.SendAsync(sb.ToString());
+            var username = match.Groups["username"]?.Value;
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                await this.SendAsync("Either that player does not exist, or has a different password. #002\r\n");
+                return new CommandProcessingResult(true);
+            }
+
+            var playerRef = (DbRef)await this._server.ScriptingEngine.Redis.HashGetAsync<string>("mudpie::usernames", username.ToLowerInvariant());
+            if (DbRef.NOTHING.Equals(playerRef))
+            {
+                await this.SendAsync("Either that player does not exist, or has a different password. #003\r\n");
+                return new CommandProcessingResult(true);
+            }
+
+            var player = Player.Get(this._server.ScriptingEngine.Redis, playerRef);
+            if (player == null)
+            {
+                await this.SendAsync("Either that player does not exist, or has a different password. #004\r\n");
+                return new CommandProcessingResult(true);
+            }
+
+            var password = match.Groups["password"]?.Value;
+            if (password == null)
+            {
+                await this.SendAsync("Either that player does not exist, or has a different password. #005\r\n");
+                return new CommandProcessingResult(true);
+            }
+
+            var secureAttempt = new SecureString();
+            foreach (var c in password)
+                secureAttempt.AppendChar(c);
+
+            var passwordMatch = player.VerifyPassword(secureAttempt);
+            if (!passwordMatch)
+            {
+                await this.SendAsync("Either that player does not exist, or has a different password. #006\r\n");
+                return new CommandProcessingResult(true);
+            }
+
+            this.Identity = player;
+            await this.SendAsync("Greetings, Professor Faulkin\r\n");
             return new CommandProcessingResult(true);
         }
 
