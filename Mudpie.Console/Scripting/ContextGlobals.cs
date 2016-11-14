@@ -1,6 +1,6 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="ContextGlobals.cs" company="Sean McElroy">
-//   
+//   Released under the terms of the MIT License
 // </copyright>
 // <summary>
 //   Global context variables passed into a program execution context
@@ -11,25 +11,35 @@ namespace Mudpie.Console.Scripting
 {
     using System.IO;
 
-    using Mudpie.Console.Data;
+    using JetBrains.Annotations;
 
     /// <summary>
     /// Global context variables passed into a program execution context
     /// </summary>
+    [PublicAPI]
     public class ContextGlobals
     {
         /// <summary>
-        /// Gets or sets global variables provided by the running engine, global to the whole MUD instance
+        /// Initializes a new instance of the <see cref="ContextGlobals"/> class.
+        /// </summary>
+        public ContextGlobals()
+        {
+            this.PlayerInput = new PlayerInputStreamReader(this.PlayerInputStreamInternal);
+            this.PlayerInputWriterInternal = new PlayerInputStreamWriter(this.PlayerInputWriterStreamInternal, this.PlayerInput);
+        }
+
+        /// <summary>
+        /// Gets global variables provided by the running engine, global to the whole MUD instance
         /// </summary>
         public object EngineGlobals { get; internal set; }
 
         /// <summary>
-        /// Gets or sets the unique identifier of the <see cref="ObjectBase"/> that triggered the program execution
+        /// Gets or sets the unique identifier of the <see cref="Data.ObjectBase"/> that triggered the program execution
         /// </summary>
         public string TriggerId { get; internal set; }
 
         /// <summary>
-        /// Gets or sets the type of the <see cref="ObjectBase"/> that triggered the program execution
+        /// Gets or sets the type of the <see cref="Data.ObjectBase"/> that triggered the program execution
         /// </summary>
         /// <example>
         /// Sample values are PLAYER and EXIT
@@ -37,28 +47,38 @@ namespace Mudpie.Console.Scripting
         public string TriggerType { get; internal set; }
 
         /// <summary>
-        /// Gets or sets the name of the <see cref="ObjectBase"/> that triggered the program execution
+        /// Gets or sets the name of the <see cref="Data.ObjectBase"/> that triggered the program execution
         /// </summary>
         public string TriggerName { get; internal set; }
 
         /// <summary>
-        /// Gets or sets a text writer that can be used to receive information from the triggering object.
-        /// </summary>
-        private MemoryStream __INTERNAL__ScriptInputStream { get; set; } = new MemoryStream(2048);
-
-        public TextReader __INTERNAL__ScriptInput { get; private set; }
-
-        public TextWriter __INTERNAL__ScriptInputWriter { get; private set; }
-
-        /// <summary>
         /// Gets or sets a text writer that can be used to send information back to the triggering object.
         /// </summary>
-        public TextWriter __INTERNAL__ScriptOutput { get; internal set; }
+        [CanBeNull]
+        public TextWriter PlayerOutput { get; internal set; }
 
-        public ContextGlobals()
-        {
-            this.__INTERNAL__ScriptInput = new PlayerInputTextReader(__INTERNAL__ScriptInputStream);
-            this.__INTERNAL__ScriptInputWriter = new StreamWriter(__INTERNAL__ScriptInputStream);
-        }
+        /// <summary>
+        /// Gets a <see cref="StreamWriter"/> that is used by the internal <see cref="Network.Connection"/> to store input received by a player
+        /// </summary>
+        [NotNull]
+        public PlayerInputStreamWriter PlayerInputWriterInternal { get; private set; }
+
+        /// <summary>
+        /// Gets a <see cref="StreamReader"/> that can be used by the script to retrieve text from the player waiting for it to read in
+        /// </summary>
+        [NotNull]
+        public PlayerInputStreamReader PlayerInput { get; private set; }
+
+        /// <summary>
+        /// Gets a memory stream that stores text from the player that is waiting for transfer to the <see cref="PlayerInputStreamInternal"/> script-attached stream
+        /// </summary>
+        [NotNull]
+        private MemoryStream PlayerInputWriterStreamInternal { get; } = new MemoryStream(2048);
+
+        /// <summary>
+        /// Gets a memory stream that stores text waiting for the script to read in
+        /// </summary>
+        [NotNull]
+        private MemoryStream PlayerInputStreamInternal { get; } = new MemoryStream(2048);
     }
 }

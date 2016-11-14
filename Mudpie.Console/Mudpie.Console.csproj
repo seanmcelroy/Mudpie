@@ -192,14 +192,15 @@
     <Compile Include="Scripting\ContextState.cs" />
     <Compile Include="Scripting\Engine.cs" />
     <Compile Include="Data\Program.cs" />
-    <Compile Include="Scripting\PlayerInputTextReader.cs" />
+    <Compile Include="Scripting\PlayerInputStreamReader.cs" />
+    <Compile Include="Scripting\PlayerInputStreamWriter.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
     <None Include="Scripting\Builtin\test2.prog" />
-    <None Include="Scripting\Builtin\Unauthenticated\help.prog" />
-    <None Include="Scripting\Builtin\Unauthenticated\marco.prog" />
+    <None Include="Scripting\Builtin\Unauthenticated\help.mtxt" />
+    <None Include="Scripting\Builtin\Unauthenticated\marco.mcs" />
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="..\packages\Microsoft.CodeAnalysis.Analyzers.1.1.0\analyzers\dotnet\cs\Microsoft.CodeAnalysis.Analyzers.dll" />

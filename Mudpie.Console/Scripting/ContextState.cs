@@ -1,5 +1,17 @@
-﻿namespace Mudpie.Console.Scripting
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="ContextState.cs" company="">
+//   
+// </copyright>
+// <summary>
+//   The current state of the execution context
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Scripting
 {
+    /// <summary>
+    /// The current state of the execution context
+    /// </summary>
     internal enum ContextState
     {
         /// <summary>

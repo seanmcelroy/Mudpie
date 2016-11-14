@@ -31,11 +31,11 @@
 
             var program = await this.LoadProgramAsync(programName);
             if (program == null)
-                return Context<T>.Error(program, ContextErrorNumber.ProgramNotFound, $"Unable to locate program with name {programName}");
+                return Context<T>.Error(null, ContextErrorNumber.ProgramNotFound, $"Unable to locate program with name {programName}");
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             if (trigger == null && !program.UnauthenticatedExecution)
-                return Context<T>.Error(null, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
+                return Context<T>.Error(program, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
 
             var context = new Context<T>(program);
             using (var outputStream = new MemoryStream(2048))
@@ -49,7 +49,7 @@
                     TriggerId = trigger?.Id,
                     TriggerName = trigger?.Name,
                     TriggerType = trigger is Player ? "PLAYER" : "?",
-                    __INTERNAL__ScriptOutput = outputStreamWriter
+                    PlayerOutput = outputStreamWriter
                 };
 
                 var outputLastPositionRead = 0L;
@@ -61,7 +61,11 @@
                     {
                         if (context.State == ContextState.Running)
                         {
-                            await scriptGlobals.__INTERNAL__ScriptOutput.FlushAsync();
+                            // Input
+                            await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
+
+                            // Output
+                            await scriptGlobals.PlayerOutput.FlushAsync();
                             outputStream.Position = outputLastPositionRead;
                             var outputString = await outputStreamReader.ReadToEndAsync();
                             if (!string.IsNullOrEmpty(outputString))
@@ -78,14 +82,12 @@
                 appendOutputTask.Start();
 
                 // INPUT
-                if (program.Interactive && connection != null)
-                {
-                    connection.RedirectInputToProgram(async input =>
-                    {
-                        await scriptGlobals.__INTERNAL__ScriptInputWriter.WriteAsync(input);
-                        await scriptGlobals.__INTERNAL__ScriptInputWriter.FlushAsync();
-                    });
-                }
+                if (program.Interactive)
+                    connection?.RedirectInputToProgram(async input =>
+                        {
+                            await scriptGlobals.PlayerInputWriterInternal.WriteAsync(input);
+                            await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
+                        });
 
                 try
                 {
@@ -93,13 +95,18 @@
                 }
                 finally
                 {
-                    connection.ResetInputRedirection();
+                    connection?.ResetInputRedirection();
                 }
 
                 outputCancellationTokenSource.Cancel();
+
                 // Do one last time to get any last feedback
 
-                await scriptGlobals.__INTERNAL__ScriptOutput.FlushAsync();
+                // Input
+                await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
+
+                // Output
+                await scriptGlobals.PlayerOutput.FlushAsync();
                 outputStream.Position = outputLastPositionRead;
                 var feedbackString2 = await outputStreamReader.ReadToEndAsync();
                 if (!string.IsNullOrEmpty(feedbackString2))
@@ -112,6 +119,17 @@
             }
 
             return context;
+        }
+
+        /// <summary>
+        /// Checks to see whether a <see cref="Data.Program"/> with the given <paramref name="programName"/> exists in the data store
+        /// </summary>
+        /// <param name="programName">The name of the <see cref="Data.Program"/> to search for in the data store</param>
+        /// <returns><see cref="System.Boolean.True"/> if the program with the specified <paramref name="programName"/> was found in the data store; otherwise, <see cref="System.Boolean.False"/></returns>
+        public async Task<bool> ProgramExistsAsync([NotNull] string programName)
+        {
+            var normalizedProgramName = programName.ToLowerInvariant();
+            return await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}");
         }
 
         /// <summary>

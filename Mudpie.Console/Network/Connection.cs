@@ -1,23 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Mudpie.Console.Network
+﻿namespace Mudpie.Console.Network
 {
+    using System;
+    using System.Collections.Generic;
     using System.Diagnostics;
     using System.Globalization;
     using System.IO;
+    using System.Linq;
     using System.Net;
     using System.Net.Sockets;
+    using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
+
+    using Data;
 
     using JetBrains.Annotations;
 
     using log4net;
-
-    using Data;
-    using System.Threading;
 
     internal class Connection
     {
@@ -29,91 +28,84 @@ namespace Mudpie.Console.Network
         /// <summary>
         /// A command-indexed dictionary with function pointers to support client command
         /// </summary>
-        private static readonly Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>> BuiltInCommandDirectory;
+        private static readonly Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>> _BuiltInCommandDirectory;
 
         /// <summary>
         /// The logging utility instance to use to log events from this class
         /// </summary>
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(Connection));
+        private static readonly ILog _Logger = LogManager.GetLogger(typeof(Connection));
 
         /// <summary>
         /// The server instance to which this connection belongs
         /// </summary>
         [NotNull]
-        private readonly Server server;
+        private readonly Server _server;
 
         /// <summary>
         /// The <see cref="TcpClient"/> that accepted this connection.
         /// </summary>
         [NotNull]
-        private readonly TcpClient client;
+        private readonly TcpClient _client;
 
         /// <summary>
         /// The <see cref="Stream"/> instance retrieved from the <see cref="TcpClient"/> that accepted this connection.
         /// </summary>
         [NotNull]
-        private readonly Stream stream;
+        private readonly Stream _stream;
 
         /// <summary>
         /// The stream receive buffer
         /// </summary>
         [NotNull]
-        private readonly byte[] buffer = new byte[BufferSize];
+        private readonly byte[] _buffer = new byte[BufferSize];
 
         /// <summary>
         /// The received data buffer appended to from the stream buffer
         /// </summary>
         [NotNull]
-        private readonly StringBuilder builder = new StringBuilder();
+        private readonly StringBuilder _builder = new StringBuilder();
 
         /// <summary>
         /// The remote IP address to which the connection is established
         /// </summary>
         [NotNull]
-        private readonly IPAddress remoteAddress;
+        private readonly IPAddress _remoteAddress;
 
         /// <summary>
         /// The remote TCP port number for the remote endpoint to which the connection is established
         /// </summary>
-        private readonly int remotePort;
+        private readonly int _remotePort;
 
         /// <summary>
         /// The local IP address to which the connection is established
         /// </summary>
         [NotNull]
-        private readonly IPAddress localAddress;
+        private readonly IPAddress _localAddress;
 
         /// <summary>
         /// The local TCP port number for the local endpoint to which the connection is established
         /// </summary>
-        private readonly int localPort;
+        private readonly int _localPort;
 
         /// <summary>
         /// For commands that handle conversational request-replies, this is a reference to the
         /// command that should handle new input received by the main process loop.
         /// </summary>
         [CanBeNull]
-        private CommandProcessingResult inProcessCommand;
-
-        /// <summary>
-        /// Gets or sets the mode for the connection.  When a connection is in <see cref="ConnectionMode.Normal"/> mode,
-        /// commands will be process by the global command resolution system.  When the connection is in <see cref="ConnectionMode.InteractiveProgram"/>,
-        /// all input is directed to a running program that is serving the connection.
-        /// </summary>
-        public ConnectionMode Mode { get; private set; } = ConnectionMode.Normal;
+        private CommandProcessingResult _inProcessCommand;
 
         /// <summary>
         /// The handler that receives messages while the <see cref="Mode"/> is set to <see cref="ConnectionMode.InteractiveProgram"/>
         /// </summary>
         [CanBeNull]
-        private Action<string> programInputHandler;
+        private Action<string> _programInputHandler;
 
         /// <summary>
         /// Initializes static members of the <see cref="Connection"/> class.
         /// </summary>
         static Connection()
         {
-            BuiltInCommandDirectory = new Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>>
+            _BuiltInCommandDirectory = new Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>>
                 {
                     { "CAPABILITIES", async (c, data) => await c.Capabilities() }
                 };
@@ -132,21 +124,32 @@ namespace Mudpie.Console.Network
             [NotNull] Stream stream,
             bool tls = false)
         {
-            this.client = client;
-            this.client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            this._client = client;
+            this._client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             this.ShowBytes = server.ShowBytes;
             this.ShowCommands = server.ShowCommands;
             this.ShowData = server.ShowData;
-            this.server = server;
-            this.stream = stream;
+            this._server = server;
+            this._stream = stream;
 
-            var remoteIpEndpoint = (IPEndPoint)this.client.Client.RemoteEndPoint;
-            this.remoteAddress = remoteIpEndpoint.Address;
-            this.remotePort = remoteIpEndpoint.Port;
-            var localIpEndpoint = (IPEndPoint)this.client.Client.LocalEndPoint;
-            this.localAddress = localIpEndpoint.Address;
-            this.localPort = localIpEndpoint.Port;
+            var remoteIpEndpoint = (IPEndPoint)this._client.Client.RemoteEndPoint;
+            Debug.Assert(remoteIpEndpoint != null, "remoteIpEndpoint != null");
+            Debug.Assert(remoteIpEndpoint.Address != null, "remoteIpEndpoint.Address != null");
+            this._remoteAddress = remoteIpEndpoint.Address;
+            this._remotePort = remoteIpEndpoint.Port;
+            var localIpEndpoint = (IPEndPoint)this._client.Client.LocalEndPoint;
+            Debug.Assert(localIpEndpoint != null, "localIpEndpoint != null");
+            Debug.Assert(localIpEndpoint.Address != null, "localIpEndpoint.Address != null");
+            this._localAddress = localIpEndpoint.Address;
+            this._localPort = localIpEndpoint.Port;
         }
+
+        /// <summary>
+        /// Gets the mode for the connection.  When a connection is in <see cref="ConnectionMode.Normal"/> mode,
+        /// commands will be process by the global command resolution system.  When the connection is in <see cref="ConnectionMode.InteractiveProgram"/>,
+        /// all input is directed to a running program that is serving the connection.
+        /// </summary>
+        public ConnectionMode Mode { get; private set; } = ConnectionMode.Normal;
 
         public bool ShowBytes { get; set; }
 
@@ -169,36 +172,29 @@ namespace Mudpie.Console.Network
         public string CurrentRoomId { get; private set; }
 
         #region Derived instance properties
+
         /// <summary>
         /// Gets the remote IP address to which the connection is established
         /// </summary>
         [NotNull]
-        public IPAddress RemoteAddress => this.remoteAddress;
+        public IPAddress RemoteAddress => this._remoteAddress;
 
         /// <summary>
         /// Gets the remote TCP port number for the remote endpoint to which the connection is established
         /// </summary>
-        public int RemotePort
-        {
-            get { return this.remotePort; }
-        }
+        public int RemotePort => this._remotePort;
 
         /// <summary>
         /// Gets the local IP address to which the connection is established
         /// </summary>
         [NotNull]
-        public IPAddress LocalAddress
-        {
-            get { return this.localAddress; }
-        }
+        public IPAddress LocalAddress => this._localAddress;
 
         /// <summary>
         /// Gets the local TCP port number for the local endpoint to which the connection is established
         /// </summary>
-        public int LocalPort
-        {
-            get { return this.localPort; }
-        }
+        public int LocalPort => this._localPort;
+
         #endregion
 
         #region IO and Connection Management
@@ -206,7 +202,7 @@ namespace Mudpie.Console.Network
         {
             await this.SendAsync("200 Service available, posting allowed\r\n");
 
-            Debug.Assert(this.stream != null, "The stream was 'null', but it should not have been because the connection was accepted and processing is beginning.");
+            Debug.Assert(this._stream != null, "The stream was 'null', but it should not have been because the connection was accepted and processing is beginning.");
 
             bool send403;
 
@@ -214,21 +210,21 @@ namespace Mudpie.Console.Network
             {
                 while (true)
                 {
-                    if (!this.client.Connected || !this.client.Client.Connected) return;
+                    if (!this._client.Connected || !this._client.Client.Connected) return;
 
-                    if (!this.stream.CanRead)
+                    if (!this._stream.CanRead)
                     {
                         await this.Shutdown();
                         return;
                     }
 
-                    var bytesRead = await this.stream.ReadAsync(this.buffer, 0, BufferSize);
+                    var bytesRead = await this._stream.ReadAsync(this._buffer, 0, BufferSize, cancellationToken);
 
                     // There  might be more data, so store the data received so far.
-                    this.builder.Append(Encoding.ASCII.GetString(this.buffer, 0, bytesRead));
+                    this._builder.Append(Encoding.ASCII.GetString(this._buffer, 0, bytesRead));
 
                     // Not all data received OR no more but not yet ending with the delimiter. Get more.
-                    var content = this.builder.ToString();
+                    var content = this._builder.ToString();
                     if (bytesRead == BufferSize || !content.EndsWith("\r\n", StringComparison.Ordinal))
                     {
                         // Read some more.
@@ -238,112 +234,140 @@ namespace Mudpie.Console.Network
                     // All the data has been read from the 
                     // client. Display it on the console.
                     if (this.ShowBytes && this.ShowData)
-                        Logger.TraceFormat(
-                            "{0}:{1} >{2}> {3} bytes: {4}", this.RemoteAddress, this.RemotePort, ">",
+                        _Logger.TraceFormat(
+                            "{0}:{1} >{2}> {3} bytes: {4}",
+                            this.RemoteAddress, 
+                            this.RemotePort, 
+                            ">",
                             content.Length,
                             content.TrimEnd('\r', '\n'));
                     else if (this.ShowBytes)
-                        Logger.TraceFormat(
-                            "{0}:{1} >{2}> {3} bytes", this.RemoteAddress, this.RemotePort, ">",
+                        _Logger.TraceFormat(
+                            "{0}:{1} >{2}> {3} bytes",
+                            this.RemoteAddress, 
+                            this.RemotePort, 
+                            ">",
                             content.Length);
                     else if (this.ShowData)
-                        Logger.TraceFormat(
-                            "{0}:{1} >{2}> {3}", this.RemoteAddress, this.RemotePort, ">",
+                        _Logger.TraceFormat(
+                            "{0}:{1} >{2}> {3}",
+                            this.RemoteAddress,
+                            this.RemotePort,
+                            ">",
                             content.TrimEnd('\r', '\n'));
 
-                    if (this.inProcessCommand != null && this.inProcessCommand.MessageHandler != null)
+                    if (this._inProcessCommand?.MessageHandler != null)
                     {
                         // Ongoing read - don't parse it for commands
-                        this.inProcessCommand = await this.inProcessCommand.MessageHandler(content, this.inProcessCommand);
-                        if (this.inProcessCommand != null && this.inProcessCommand.IsQuitting)
-                            this.inProcessCommand = null;
+                        this._inProcessCommand = await this._inProcessCommand.MessageHandler(content, this._inProcessCommand);
+                        if (this._inProcessCommand != null && this._inProcessCommand.IsQuitting)
+                            this._inProcessCommand = null;
                     }
                     else if (this.Mode == ConnectionMode.InteractiveProgram)
                     {
                         // Send input instead to the program bound to this connection
-                        Debug.Assert(programInputHandler != null);
-                        programInputHandler.Invoke(content);
+                        Debug.Assert(this._programInputHandler != null, "this._programInputHandler != null");
+                        this._programInputHandler.Invoke(content);
                     }
                     else
                     {
                         var command = content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant();
-                        if (BuiltInCommandDirectory.ContainsKey(command))
+                        if (_BuiltInCommandDirectory.ContainsKey(command))
                         {
                             try
                             {
                                 if (this.ShowCommands)
-                                    Logger.TraceFormat("{0}:{1} >{2}> {3}", this.RemoteAddress, this.RemotePort, ">", content.TrimEnd('\r', '\n'));
+                                    _Logger.TraceFormat("{0}:{1} >{2}> {3}", this.RemoteAddress, this.RemotePort, ">", content.TrimEnd('\r', '\n'));
 
-                                var result = await BuiltInCommandDirectory[command].Invoke(this, content);
+                                var result = await _BuiltInCommandDirectory[command].Invoke(this, content);
 
-                                if (!result.IsHandled) await this.SendAsync("500 Unknown command\r\n");
-                                else if (result.MessageHandler != null) this.inProcessCommand = result;
-                                else if (result.IsQuitting) return;
+                                if (!result.IsHandled)
+                                    await this.SendAsync("500 Unknown command\r\n");
+                                else if (result.MessageHandler != null)
+                                    this._inProcessCommand = result;
+                                else if (result.IsQuitting)
+                                    return;
                             }
                             catch (Exception ex)
                             {
                                 send403 = true;
-                                Logger.Error("Exception processing a command", ex);
+                                _Logger.Error("Exception processing a command", ex);
                                 break;
                             }
                         }
                         else
                         {
-                            var context = await server.ScriptingEngine.RunProgramAsync<int>(command, this.Identity, this, cancellationToken);
-                            if (context == null || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
-                                await this.SendAsync("Huh?\r\n");
-                            else if (context.ErrorNumber == Scripting.ContextErrorNumber.AuthenticationRequired)
-                                await this.SendAsync("You must be logged in to use that command.\r\n");
-                            else if (context.State == Scripting.ContextState.Aborted)
-                                await this.SendAsync("Aborted.\r\n");
-                            else if (context.State == Scripting.ContextState.Errored)
-                                await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n");
-                            else if (context.State == Scripting.ContextState.Killed)
-                                await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n");
-                            else if (context.State == Scripting.ContextState.Loaded)
-                                await this.SendAsync($"STUCK: {context.ProgramName} loaded but not completed.\r\n");
-                            else if (context.State == Scripting.ContextState.Paused)
-                                await this.SendAsync($"Paused: {context.ProgramName}.\r\n");
-                            else if (context.State == Scripting.ContextState.Running)
-                                await this.SendAsync($"Running... {context.ProgramName}.\r\n");
-                            else if (context.State == Scripting.ContextState.Completed)
-                            {
-                                // Write feedback to output
-                                if (context.Output.Count == 0)
-                                    await this.SendAsync($"{context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
-                                else
-                                    foreach (var line in context.Output)
-                                        await this.SendAsync($"{line}\r\n");
-                            }
+                            // Spawn the program as an asychronous task (no await) so input can still be processed on this connection
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+                            Task.Factory.StartNew(async () =>
+                                {
+                                    var context = await this._server.ScriptingEngine.RunProgramAsync<int>(command, this.Identity, this, cancellationToken);
+                                    if (context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
+                                        await this.SendAsync("Huh?\r\n");
+                                    else if (context.ErrorNumber == Scripting.ContextErrorNumber.AuthenticationRequired)
+                                        await this.SendAsync("You must be logged in to use that command.\r\n");
+                                    else
+                                        switch (context.State)
+                                        {
+                                            case Scripting.ContextState.Aborted:
+                                                await this.SendAsync("Aborted.\r\n");
+                                                break;
+                                            case Scripting.ContextState.Errored:
+                                                await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n");
+                                                break;
+                                            case Scripting.ContextState.Killed:
+                                                await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n");
+                                                break;
+                                            case Scripting.ContextState.Loaded:
+                                                await this.SendAsync($"STUCK: {context.ProgramName} loaded but not completed.\r\n");
+                                                break;
+                                            case Scripting.ContextState.Paused:
+                                                await this.SendAsync($"Paused: {context.ProgramName}.\r\n");
+                                                break;
+                                            case Scripting.ContextState.Running:
+                                                await this.SendAsync($"Running... {context.ProgramName}.\r\n");
+                                                break;
+                                            case Scripting.ContextState.Completed:
+                                                // Write feedback to output
+                                                if (context.Output.Count == 0)
+                                                    await this.SendAsync($"{context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
+                                                else
+                                                    foreach (var line in context.Output)
+                                                        await this.SendAsync($"{line}\r\n");
+                                                break;
+                                        }
+                                },
+                                cancellationToken);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                         }
                     }
 
-                    this.builder.Clear();
+                    this._builder.Clear();
                 }
             }
             catch (DecoderFallbackException dfe)
             {
                 send403 = true;
-                Logger.Error("Decoder Fallback Exception socket " + this.RemoteAddress, dfe);
+                _Logger.Error("Decoder Fallback Exception socket " + this.RemoteAddress, dfe);
             }
             catch (IOException se)
             {
                 send403 = true;
-                Logger.Error("I/O Exception on socket " + this.RemoteAddress, se);
+                _Logger.Error("I/O Exception on socket " + this.RemoteAddress, se);
             }
             catch (SocketException se)
             {
                 send403 = true;
-                Logger.Error("Socket Exception on socket " + this.RemoteAddress, se);
+                _Logger.Error("Socket Exception on socket " + this.RemoteAddress, se);
             }
             catch (NotSupportedException nse)
             {
-                Logger.Error("Not Supported Exception", nse);
+                _Logger.Error("Not Supported Exception", nse);
                 return;
             }
             catch (ObjectDisposedException ode)
             {
-                Logger.Error("Object Disposed Exception", ode);
+                _Logger.Error("Object Disposed Exception", ode);
                 return;
             }
 
@@ -371,9 +395,9 @@ namespace Mudpie.Console.Network
             try
             {
                 // Begin sending the data to the remote device.
-                await this.stream.WriteAsync(byteData, 0, byteData.Length);
+                await this._stream.WriteAsync(byteData, 0, byteData.Length);
                 if (this.ShowBytes && this.ShowData)
-                    Logger.TraceFormat(
+                    _Logger.TraceFormat(
                         "{0}:{1} <{2}{3} {4} bytes: {5}",
                         this.RemoteAddress, 
                         this.RemotePort,
@@ -382,7 +406,7 @@ namespace Mudpie.Console.Network
                         byteData.Length,
                         data.TrimEnd('\r', '\n'));
                 else if (this.ShowBytes)
-                    Logger.TraceFormat(
+                    _Logger.TraceFormat(
                         "{0}:{1} <{2}{3} {4} bytes",
                         this.RemoteAddress, 
                         this.RemotePort, 
@@ -390,7 +414,7 @@ namespace Mudpie.Console.Network
                         "<",
                         byteData.Length);
                 else if (this.ShowData)
-                    Logger.TraceFormat(
+                    _Logger.TraceFormat(
                         "{0}:{1} <{2}{3} {4}",
                         this.RemoteAddress, 
                         this.RemotePort,
@@ -403,48 +427,50 @@ namespace Mudpie.Console.Network
             catch (IOException)
             {
                 // Don't send 403 - the sending socket isn't working.
-                Logger.VerboseFormat("{0}:{1} XXX CONNECTION TERMINATED", this.RemoteAddress, this.RemotePort);
+                _Logger.VerboseFormat("{0}:{1} XXX CONNECTION TERMINATED", this.RemoteAddress, this.RemotePort);
                 return false;
             }
             catch (SocketException)
             {
                 // Don't send 403 - the sending socket isn't working.
-                Logger.VerboseFormat("{0}:{1} XXX CONNECTION TERMINATED", this.RemoteAddress, this.RemotePort);
+                _Logger.VerboseFormat("{0}:{1} XXX CONNECTION TERMINATED", this.RemoteAddress, this.RemotePort);
                 return false;
             }
             catch (ObjectDisposedException)
             {
-                Logger.VerboseFormat("{0}:{1} XXX CONNECTION TERMINATED", this.RemoteAddress, this.RemotePort);
+                _Logger.VerboseFormat("{0}:{1} XXX CONNECTION TERMINATED", this.RemoteAddress, this.RemotePort);
                 return false;
             }
         }
 
         public void RedirectInputToProgram([NotNull] Action<string> programInputHandler)
         {
-            this.programInputHandler = programInputHandler;
-            Mode = ConnectionMode.InteractiveProgram;
+            this._programInputHandler = programInputHandler;
+            this.Mode = ConnectionMode.InteractiveProgram;
         }
 
         public void ResetInputRedirection()
         {
-            Mode = ConnectionMode.Normal;
-            this.programInputHandler = null;
+            this.Mode = ConnectionMode.Normal;
+            this._programInputHandler = null;
         }
 
         public async Task Shutdown()
         {
-            if (this.client.Connected)
+            if (this._client.Connected)
             {
                 await this.SendAsync("205 closing connection\r\n");
-                this.client.Client.Shutdown(SocketShutdown.Both);
-                this.client.Close();
+                this._client.Client?.Shutdown(SocketShutdown.Both);
+                this._client.Close();
             }
 
-            this.server.RemoveConnection(this);
+            this._server.RemoveConnection(this);
         }
+
         #endregion
 
         #region Commands
+
         /// <summary>
         /// Handles the CAPABILITIES command from a client, which allows a client to retrieve a list
         /// of the functionality available in this server. 
@@ -471,6 +497,7 @@ namespace Mudpie.Console.Network
             await this.SendAsync(sb.ToString());
             return new CommandProcessingResult(true);
         }
+
         #endregion
 
         [CanBeNull, Pure]

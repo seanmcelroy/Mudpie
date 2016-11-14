@@ -1,7 +1,0 @@
-﻿// INTERACTIVE
-System.Console.WriteLine("Marco!");
-var input = System.Console.ReadLine();
-System.Console.WriteLine($"You said: {input}");
-input = System.Console.ReadLine();
-System.Console.WriteLine($"Second time, you said: {input}");
-return 0;

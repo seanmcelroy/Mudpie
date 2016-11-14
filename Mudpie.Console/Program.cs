@@ -2,20 +2,21 @@
 {
     using System;
     using System.Configuration;
+    using System.Diagnostics;
     using System.Linq;
     using System.Security;
     using System.Threading.Tasks;
 
-    using log4net.Config;
-
     using Configuration;
+
     using Data;
 
     using log4net;
-
-    using Scripting;
+    using log4net.Config;
 
     using Network;
+
+    using Scripting;
 
     using StackExchange.Redis.Extensions.Core;
     using StackExchange.Redis.Extensions.Newtonsoft;
@@ -25,7 +26,7 @@
         /// <summary>
         /// The logging utility instance to use to log events from this class
         /// </summary>
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(Program));
+        private static readonly ILog _Logger = LogManager.GetLogger(typeof(Program));
 
         /// <summary>
         /// Entry point of the application
@@ -39,7 +40,7 @@
             // Load configuration
             var config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
             var mudpieConfigurationSection = (MudpieConfigurationSection)config.GetSection("mudpie");
-            Logger.InfoFormat("Loaded configuration from {0}", config.FilePath);
+            _Logger.InfoFormat("Loaded configuration from {0}", config.FilePath);
             
             var godId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1).ToString("N");
             var godPlayer = new Player
@@ -51,6 +52,8 @@
 
             using (var redis = new StackExchangeRedisCacheClient(new NewtonsoftSerializer()))
             {
+                Debug.Assert(redis != null, "redis != null");
+
                 // Seed data
                 Task.Run(async () =>
                     {
@@ -97,28 +100,37 @@
                 // Setup scripting engine
                 var scriptingEngine = new Engine(redis);
                 var scriptEngineTask = Task.Run(async () =>
-                {
-                    foreach (var dir in mudpieConfigurationSection.Directories)
+                    {
+                        Debug.Assert(mudpieConfigurationSection != null, "mudpieConfigurationSection != null");
+                        foreach (var dir in mudpieConfigurationSection.Directories)
                         foreach (var file in System.IO.Directory.GetFiles(dir.Directory))
+                        {
+                            Debug.Assert(file != null, "file != null");
                             using (var sr = new System.IO.StreamReader(file))
                             {
                                 var contents = await sr.ReadToEndAsync();
-                                bool interactive = contents.IndexOf("// INTERACTIVE", StringComparison.InvariantCultureIgnoreCase) > -1;
+                                var interactive = contents.IndexOf("// MUDPIE::INTERACTIVE", StringComparison.InvariantCultureIgnoreCase) > -1;
                                 await scriptingEngine.SaveProgramAsync(new Data.Program(System.IO.Path.GetFileNameWithoutExtension(file), contents, dir.Unauthenticated)
-                                {
-                                    Interactive = interactive
-                                });
+                                                                           {
+                                                                               Interactive = interactive
+                                                                           });
                                 sr.Close();
                             }
-                    
-                    //await engine.SaveProgramAsync(new Data.Program("test", "int x = 1;int y = 2;return x + y;"));
+                        }
+
+                        //await engine.SaveProgramAsync(new Data.Program("test", "int x = 1;int y = 2;return x + y;"));
                     //var result = await engine.RunProgramAsync<int>("test", godPlayer);
                     //Console.WriteLine(result.ReturnValue);
-                });
+                    });
                 scriptEngineTask.Wait();
 
                 // Listen for connections
-                var server = new Server(mudpieConfigurationSection.Ports.Select(p => p.Port).ToArray(), scriptingEngine);
+                var server = new Server(mudpieConfigurationSection.Ports.Select(p => p.Port).ToArray(), scriptingEngine)
+                                 {
+                                     ShowBytes = true,
+                                     ShowCommands = false,
+                                     ShowData = true
+                                 };
                 server.Start();
 
 

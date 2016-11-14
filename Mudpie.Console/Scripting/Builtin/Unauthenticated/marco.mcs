@@ -1,0 +1,9 @@
+﻿// MUDPIE::INTERACTIVE
+
+PlayerOutput.WriteLine("Marco?");
+var input = PlayerInput.ReadLine();
+PlayerOutput.WriteLine($"You said: {input}");
+input = PlayerInput.ReadLine();
+PlayerOutput.WriteLine($"Second time, you said: {input}");
+
+return 0;
