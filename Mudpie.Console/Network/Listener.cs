@@ -1,4 +1,13 @@
-﻿namespace Mudpie.Console.Network
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Listener.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   A listener is a network server process that listens for and accepts incoming <see cref="Network.Connection" />s
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Network
 {
     using System;
     using System.IO;
@@ -10,16 +19,30 @@
 
     using log4net;
 
+    /// <summary>
+    /// A listener is a network server process that listens for and accepts incoming <see cref="Network.Connection"/>s
+    /// </summary>
     internal class Listener : TcpListener
     {
-        // Thread signal.
-        private readonly Server server;
+        /// <summary>
+        /// The logging instance for this class
+        /// </summary>
         private static readonly ILog _Logger = LogManager.GetLogger(typeof(Listener));
 
+        /// <summary>
+        /// Thread signal
+        /// </summary>
+        private readonly Server _server;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Listener"/> class.
+        /// </summary>
+        /// <param name="server">The server instance that will own the accepted connection</param>
+        /// <param name="localEp">The local endpoint connection information</param>
         public Listener([NotNull] Server server, [NotNull] IPEndPoint localEp)
             : base(localEp)
         {
-            this.server = server;
+            this._server = server;
         }
 
         public PortClass PortType { get; set; }
@@ -30,7 +53,7 @@
             var localEndPoint = new IPEndPoint(IPAddress.Any, ((IPEndPoint)this.LocalEndpoint).Port);
 
             // Create a TCP/IP socket.
-            var listener = new Listener(this.server, localEndPoint);
+            var listener = new Listener(this._server, localEndPoint);
 
             // Bind the socket to the local endpoint and listen for incoming connections.
             try
@@ -51,7 +74,7 @@
                     {
                         var stream = handler.GetStream();
 
-                        connection = new Connection(this.server, handler, stream);
+                        connection = new Connection(this._server, handler, stream);
                     }
                     else
                     {
@@ -60,7 +83,7 @@
 
                         try
                         {
-                            await sslStream.AuthenticateAsServerAsync(this.server.ServerAuthenticationCertificate);
+                            await sslStream.AuthenticateAsServerAsync(this._server.ServerAuthenticationCertificate);
                         }
                         catch (IOException ioe)
                         {
@@ -68,10 +91,10 @@
                             return;
                         }
 
-                        connection = new Connection(this.server, handler, sslStream, true);
+                        connection = new Connection(this._server, handler, sslStream, true);
                     }
 
-                    this.server.AddConnection(connection);
+                    this._server.AddConnection(connection);
 
                     connection.Process();
                 }

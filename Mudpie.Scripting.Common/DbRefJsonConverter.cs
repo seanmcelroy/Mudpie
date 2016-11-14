@@ -3,7 +3,7 @@
 //   Released under the terms of the MIT License
 // </copyright>
 // <summary>
-//   Defines the DbRefJsonConverter type.
+//   A custom JSON converter to serialize <see cref="DbRef"/> instances
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -12,13 +12,18 @@ namespace Mudpie.Scripting.Common
     using System;
     using System.Diagnostics;
 
+    using JetBrains.Annotations;
+
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
 
+    /// <summary>
+    /// A custom JSON converter to serialize <see cref="DbRef"/> instances
+    /// </summary>
     public class DbRefJsonConverter : JsonConverter
     {
         /// <inheritdoc />
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, object value, [NotNull] JsonSerializer serializer)
         {
             var dbref = (DbRef?)value ?? DbRef.NOTHING;
             serializer.Serialize(writer, dbref.ToString());

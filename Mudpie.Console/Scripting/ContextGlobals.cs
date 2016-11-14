@@ -13,7 +13,6 @@ namespace Mudpie.Console.Scripting
 
     using JetBrains.Annotations;
 
-    using Mudpie.Console.Data;
     using Mudpie.Scripting.Common;
 
     /// <summary>

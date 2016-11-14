@@ -1,4 +1,13 @@
-﻿namespace Mudpie.Console.Network
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Connection.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License//   
+// </copyright>
+// <summary>
+//   A persistent, accepted connection from a client computer to the network server process
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Network
 {
     using System;
     using System.Collections.Generic;
@@ -21,6 +30,9 @@
 
     using Mudpie.Scripting.Common;
 
+    /// <summary>
+    /// A persistent, accepted connection from a client computer to the network server process
+    /// </summary>
     internal class Connection
     {
         /// <summary>
@@ -67,28 +79,6 @@
         /// </summary>
         [NotNull]
         private readonly StringBuilder _builder = new StringBuilder();
-
-        /// <summary>
-        /// The remote IP address to which the connection is established
-        /// </summary>
-        [NotNull]
-        private readonly IPAddress _remoteAddress;
-
-        /// <summary>
-        /// The remote TCP port number for the remote endpoint to which the connection is established
-        /// </summary>
-        private readonly int _remotePort;
-
-        /// <summary>
-        /// The local IP address to which the connection is established
-        /// </summary>
-        [NotNull]
-        private readonly IPAddress _localAddress;
-
-        /// <summary>
-        /// The local TCP port number for the local endpoint to which the connection is established
-        /// </summary>
-        private readonly int _localPort;
 
         /// <summary>
         /// For commands that handle conversational request-replies, this is a reference to the
@@ -138,21 +128,14 @@
             var remoteIpEndpoint = (IPEndPoint)this._client.Client.RemoteEndPoint;
             Debug.Assert(remoteIpEndpoint != null, "remoteIpEndpoint != null");
             Debug.Assert(remoteIpEndpoint.Address != null, "remoteIpEndpoint.Address != null");
-            this._remoteAddress = remoteIpEndpoint.Address;
-            this._remotePort = remoteIpEndpoint.Port;
+            this.RemoteAddress = remoteIpEndpoint.Address;
+            this.RemotePort = remoteIpEndpoint.Port;
             var localIpEndpoint = (IPEndPoint)this._client.Client.LocalEndPoint;
             Debug.Assert(localIpEndpoint != null, "localIpEndpoint != null");
             Debug.Assert(localIpEndpoint.Address != null, "localIpEndpoint.Address != null");
-            this._localAddress = localIpEndpoint.Address;
-            this._localPort = localIpEndpoint.Port;
+            this.LocalAddress = localIpEndpoint.Address;
+            this.LocalPort = localIpEndpoint.Port;
         }
-
-        /// <summary>
-        /// Gets the mode for the connection.  When a connection is in <see cref="ConnectionMode.Normal"/> mode,
-        /// commands will be process by the global command resolution system.  When the connection is in <see cref="ConnectionMode.InteractiveProgram"/>,
-        /// all input is directed to a running program that is serving the connection.
-        /// </summary>
-        public ConnectionMode Mode { get; private set; } = ConnectionMode.Normal;
 
         public bool ShowBytes { get; set; }
 
@@ -180,25 +163,32 @@
         /// Gets the remote IP address to which the connection is established
         /// </summary>
         [NotNull]
-        public IPAddress RemoteAddress => this._remoteAddress;
+        public IPAddress RemoteAddress { get; }
 
         /// <summary>
         /// Gets the remote TCP port number for the remote endpoint to which the connection is established
         /// </summary>
-        public int RemotePort => this._remotePort;
+        public int RemotePort { get; }
 
         /// <summary>
         /// Gets the local IP address to which the connection is established
         /// </summary>
         [NotNull]
-        public IPAddress LocalAddress => this._localAddress;
+        public IPAddress LocalAddress { get; }
 
         /// <summary>
         /// Gets the local TCP port number for the local endpoint to which the connection is established
         /// </summary>
-        public int LocalPort => this._localPort;
+        public int LocalPort { get; }
 
         #endregion
+
+        /// <summary>
+        /// Gets or sets the mode for the connection.  When a connection is in <see cref="ConnectionMode.Normal"/> mode,
+        /// commands will be process by the global command resolution system.  When the connection is in <see cref="ConnectionMode.InteractiveProgram"/>,
+        /// all input is directed to a running program that is serving the connection.
+        /// </summary>
+        private ConnectionMode Mode { get; set; } = ConnectionMode.Normal;
 
         #region IO and Connection Management
         public async void Process(CancellationToken cancellationToken = default(CancellationToken))

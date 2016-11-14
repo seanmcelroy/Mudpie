@@ -1,6 +1,6 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="ContextState.cs" company="">
-//   
+// <copyright file="ContextState.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
 // </copyright>
 // <summary>
 //   The current state of the execution context

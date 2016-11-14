@@ -4,16 +4,19 @@
     using System.Threading;
     using System.Threading.Tasks;
 
-    using JetBrains.Annotations;
+    using Data;
 
-    using Mudpie.Console.Data;
+    using JetBrains.Annotations;
 
     using StackExchange.Redis.Extensions.Core;
 
     internal class Engine
     {
+        /// <summary>
+        /// The underlying Redis data store client
+        /// </summary>
         [NotNull]
-        private ICacheClient redis;
+        private readonly ICacheClient redis;
 
         [CanBeNull]
         private object engineGlobals;
@@ -153,11 +156,15 @@
         {
             var normalizedProgramName = program.Name.ToLowerInvariant();
 
+            // ReSharper disable once PossibleNullReferenceException
             if (await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
+                // ReSharper disable once PossibleNullReferenceException
                 await this.redis.ReplaceAsync($"mudpie::program:{normalizedProgramName}", program);
             else
+                // ReSharper disable once PossibleNullReferenceException
                 await this.redis.AddAsync($"mudpie::program:{normalizedProgramName}", program);
 
+            // ReSharper disable once PossibleNullReferenceException
             await this.redis.SetAddAsync("mudpie::programs", normalizedProgramName);
         }
 

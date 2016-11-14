@@ -1,4 +1,13 @@
-﻿namespace Mudpie.Console.Configuration
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="ProgramConfigurationElement.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   A configuration element that specifies where the MUD should look for programs to auto-load on startup to seed the database
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Configuration
 {
     using System.Configuration;
 
@@ -12,7 +21,7 @@
         /// <summary>
         /// Gets or sets the port number
         /// </summary>
-        [ConfigurationProperty("directory", IsRequired = true)]
+        [ConfigurationProperty("directory", IsRequired = true), NotNull]
         public string Directory
         {
             get { return (string)this["directory"]; }

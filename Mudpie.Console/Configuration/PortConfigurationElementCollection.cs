@@ -3,7 +3,7 @@
 //   Released under the terms of the MIT License
 // </copyright>
 // <summary>
-//   Defines the PortConfigurationElementCollection type.
+//   A collection of <see cref="PortConfigurationElement"/> records
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -16,8 +16,12 @@ namespace Mudpie.Console.Configuration
 
     using JetBrains.Annotations;
 
+    /// <summary>
+    /// A collection of <see cref="PortConfigurationElement"/> records
+    /// </summary>
     public class PortConfigurationElementCollection : ConfigurationElementCollection, IEnumerable<PortConfigurationElement>
     {
+        /// <inheritdoc />
         public PortConfigurationElement this[int index]
         {
             get
@@ -34,43 +38,28 @@ namespace Mudpie.Console.Configuration
             }
         }
 
-        public void Add([NotNull] PortConfigurationElement serviceConfig)
-        {
-            this.BaseAdd(serviceConfig);
-        }
+        /// <inheritdoc />
+        public void Add([NotNull] PortConfigurationElement serviceConfig) => this.BaseAdd(serviceConfig);
 
-        public void Clear()
-        {
-            this.BaseClear();
-        }
+        /// <inheritdoc />
+        public void Clear() => this.BaseClear();
 
-        public void Remove([NotNull] PortConfigurationElement serviceConfig)
-        {
-            this.BaseRemove(serviceConfig.Port.ToString(CultureInfo.InvariantCulture));
-        }
+        /// <inheritdoc />
+        public void Remove([NotNull] PortConfigurationElement serviceConfig) => this.BaseRemove(serviceConfig.Port.ToString(CultureInfo.InvariantCulture));
 
-        public void RemoveAt(int index)
-        {
-            this.BaseRemoveAt(index);
-        }
+        /// <inheritdoc />
+        public void RemoveAt(int index) => this.BaseRemoveAt(index);
 
-        public void Remove([NotNull] string name)
-        {
-            this.BaseRemove(name);
-        }
+        /// <inheritdoc />
+        public void Remove([NotNull] string name) => this.BaseRemove(name);
 
-        public new IEnumerator<PortConfigurationElement> GetEnumerator()
-        {
-            return this.BaseGetAllKeys().Select(key => (PortConfigurationElement)this.BaseGet(key)).GetEnumerator();
-        }
+        /// <inheritdoc />
+        public new IEnumerator<PortConfigurationElement> GetEnumerator() => this.BaseGetAllKeys().Where(key => key != null).Select(key => (PortConfigurationElement)this.BaseGet(key)).GetEnumerator();
 
-        /// <summary>When overridden in a derived class, creates a new <see cref="T:System.Configuration.ConfigurationElement" />.</summary>
-        /// <returns>A newly created <see cref="T:System.Configuration.ConfigurationElement" />.</returns>
-        protected override ConfigurationElement CreateNewElement()
-        {
-            return new PortConfigurationElement();
-        }
+        /// <inheritdoc />
+        protected override ConfigurationElement CreateNewElement() => new PortConfigurationElement();
 
+        /// <inheritdoc />
         protected override object GetElementKey(ConfigurationElement element)
         {
             var pce = (PortConfigurationElement)element;

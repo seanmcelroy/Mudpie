@@ -1,13 +1,32 @@
-﻿namespace Mudpie.Console
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="CommandProcessingResult.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   A command processing result is a return type from methods that handle command input from interactive users on a connection
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console
 {
     using System;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
+    /// <summary>
+    /// A command processing result is a return type from methods that handle command input from interactive users on a connection
+    /// </summary>
     internal sealed class CommandProcessingResult
     {
+        public CommandProcessingResult(bool isHandled, bool isQuitting = false)
+        {
+            this.IsHandled = isHandled;
+            this.IsQuitting = isQuitting;
+        }
+
         public bool IsHandled { get; set; }
+
         public bool IsQuitting { get; set; }
 
         /// <summary>
@@ -20,15 +39,5 @@
 
         [CanBeNull]
         public string Message { get; set; }
-
-        public CommandProcessingResult(bool isHandled)
-            : this(isHandled, false)
-        {
-        }
-        public CommandProcessingResult(bool isHandled, bool isQuitting)
-        {
-            this.IsHandled = isHandled;
-            this.IsQuitting = isQuitting;
-        }
     }
 }

@@ -98,7 +98,7 @@ namespace Mudpie.Scripting.Common
         /// <inheritdoc />
         public override string ToString()
         {
-            return (string)this;
+            return this;
         }
 
         /// <inheritdoc />

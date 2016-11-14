@@ -1,4 +1,13 @@
-﻿namespace Mudpie.Console.Configuration
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="ProgramConfigurationElementCollection.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   A collection of <see cref="ProgramConfigurationElement" /> records
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console.Configuration
 {
     using System.Collections.Generic;
     using System.Configuration;
@@ -7,24 +16,21 @@
 
     using JetBrains.Annotations;
 
+    /// <summary>
+    /// A collection of <see cref="ProgramConfigurationElement"/> records
+    /// </summary>
     public class ProgramConfigurationElementCollection : ConfigurationElementCollection, IEnumerable<ProgramConfigurationElement>
     {
-        /// <summary>When overridden in a derived class, creates a new <see cref="T:System.Configuration.ConfigurationElement" />.</summary>
-        /// <returns>A newly created <see cref="T:System.Configuration.ConfigurationElement" />.</returns>
-        protected override ConfigurationElement CreateNewElement()
-        {
-            return new ProgramConfigurationElement();
-        }
-
-        protected override object GetElementKey(ConfigurationElement element)
-        {
-            var pce = (ProgramConfigurationElement)element;
-            return pce.Directory.ToString(CultureInfo.InvariantCulture);
-        }
-
+        /// <inheritdoc />
+        [NotNull]
+        [UsedImplicitly]
         public ProgramConfigurationElement this[int index]
         {
-            get { return (ProgramConfigurationElement)this.BaseGet(index); }
+            get
+            {
+                return (ProgramConfigurationElement)this.BaseGet(index);
+            }
+
             set
             {
                 if (this.BaseGet(index) != null)
@@ -33,34 +39,40 @@
             }
         }
 
-        public void Add(ProgramConfigurationElement serviceConfig)
+        /// <inheritdoc />
+        [UsedImplicitly]
+        public void Add(ProgramConfigurationElement serviceConfig) => this.BaseAdd(serviceConfig);
+
+        /// <inheritdoc />
+        [UsedImplicitly]
+        public void Clear() => this.BaseClear();
+
+        /// <inheritdoc />
+        [UsedImplicitly]
+        public void Remove([NotNull] ProgramConfigurationElement serviceConfig) => this.BaseRemove(serviceConfig.Directory);
+
+        /// <inheritdoc />
+        [UsedImplicitly]
+        public void RemoveAt(int index) => this.BaseRemoveAt(index);
+
+        /// <inheritdoc />
+        [UsedImplicitly]
+        public void Remove([NotNull] string name) => this.BaseRemove(name);
+
+        /// <inheritdoc />
+        public new IEnumerator<ProgramConfigurationElement> GetEnumerator() => this.BaseGetAllKeys().Select(key => (ProgramConfigurationElement)this.BaseGet(key)).GetEnumerator();
+
+        /// <inheritdoc />
+        protected override ConfigurationElement CreateNewElement()
         {
-            this.BaseAdd(serviceConfig);
+            return new ProgramConfigurationElement();
         }
 
-        public void Clear()
+        /// <inheritdoc />
+        protected override object GetElementKey(ConfigurationElement element)
         {
-            this.BaseClear();
-        }
-
-        public void Remove([NotNull] ProgramConfigurationElement serviceConfig)
-        {
-            this.BaseRemove(serviceConfig.Directory);
-        }
-
-        public void RemoveAt(int index)
-        {
-            this.BaseRemoveAt(index);
-        }
-
-        public void Remove(string name)
-        {
-            this.BaseRemove(name);
-        }
-
-        public new IEnumerator<ProgramConfigurationElement> GetEnumerator()
-        {
-            return this.BaseGetAllKeys().Select(key => (ProgramConfigurationElement)this.BaseGet(key)).GetEnumerator();
+            var pce = (ProgramConfigurationElement)element;
+            return pce.Directory.ToString(CultureInfo.InvariantCulture);
         }
     }
 }

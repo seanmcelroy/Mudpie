@@ -11,7 +11,6 @@ namespace Mudpie.Console.Scripting
 {
     using System;
     using System.IO;
-    using System.Text;
     using System.Threading.Tasks;
     using JetBrains.Annotations;
 
@@ -25,7 +24,7 @@ namespace Mudpie.Console.Scripting
         /// The reader stream waiting on the input provided by this writer
         /// </summary>
         [NotNull]
-        private readonly PlayerInputStreamReader readerStream;
+        private readonly PlayerInputStreamReader _readerStream;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PlayerInputStreamWriter"/> class.
@@ -35,25 +34,7 @@ namespace Mudpie.Console.Scripting
         internal PlayerInputStreamWriter([NotNull] MemoryStream stream, [NotNull] PlayerInputStreamReader readerStream)
             : base(stream)
         {
-            this.readerStream = readerStream;
-        }
-
-        internal PlayerInputStreamWriter([NotNull] MemoryStream stream, [NotNull] Encoding encoding, [NotNull] PlayerInputStreamReader readerStream)
-            : base(stream, encoding)
-        {
-            this.readerStream = readerStream;
-        }
-
-        internal PlayerInputStreamWriter([NotNull] MemoryStream stream, [NotNull] Encoding encoding, int bufferSize, [NotNull] PlayerInputStreamReader readerStream)
-            : base(stream, encoding, bufferSize)
-        {
-            this.readerStream = readerStream;
-        }
-
-        internal PlayerInputStreamWriter([NotNull] MemoryStream stream, [NotNull] Encoding encoding, int bufferSize, bool leaveOpen, [NotNull] PlayerInputStreamReader readerStream)
-            : base(stream, encoding, bufferSize, leaveOpen)
-        {
-            this.readerStream = readerStream;
+            this._readerStream = readerStream;
         }
 
         /// <inheritdoc />
@@ -61,9 +42,9 @@ namespace Mudpie.Console.Scripting
         {
             base.Write(value);
             var ba = this.Encoding.GetBytes(new[] { value }, 0, 1);
-            ((MemoryStream)this.readerStream.BaseStream).Write(ba, 0, 1);
-            ((MemoryStream)this.readerStream.BaseStream).Position -= 1;
-            this.readerStream.NotifyStreamChanged(this.Encoding);
+            ((MemoryStream)this._readerStream.BaseStream).Write(ba, 0, 1);
+            ((MemoryStream)this._readerStream.BaseStream).Position -= 1;
+            this._readerStream.NotifyStreamChanged(this.Encoding);
         }
 
         /// <inheritdoc />
@@ -74,8 +55,8 @@ namespace Mudpie.Console.Scripting
             this.Flush();
             var newPosition = this.BaseStream.Position;
             var ba = ((MemoryStream)this.BaseStream).ToArray();
-            ((MemoryStream)this.readerStream.BaseStream).Write(ba, (int)currentPosition, (int)newPosition - (int)currentPosition);
-            ((MemoryStream)this.readerStream.BaseStream).Position -= newPosition - currentPosition;
+            ((MemoryStream)this._readerStream.BaseStream).Write(ba, (int)currentPosition, (int)newPosition - (int)currentPosition);
+            ((MemoryStream)this._readerStream.BaseStream).Position -= newPosition - currentPosition;
             
             // NOTIFY HAPPENS FROM ASYNC VERSION
         }
@@ -85,7 +66,7 @@ namespace Mudpie.Console.Scripting
         {
             // CALLS Write(string value) .. but we need to notify on this thread.
             await base.WriteAsync(value);
-            this.readerStream.NotifyStreamChanged(this.Encoding);
+            this._readerStream.NotifyStreamChanged(this.Encoding);
         }
 
         /// <inheritdoc />
@@ -96,9 +77,9 @@ namespace Mudpie.Console.Scripting
             this.Flush();
             var newPosition = this.BaseStream.Position;
             var ba = ((MemoryStream)this.BaseStream).ToArray();
-            ((MemoryStream)this.readerStream.BaseStream).Write(ba, (int)currentPosition, (int)newPosition - (int)currentPosition);
-            ((MemoryStream)this.readerStream.BaseStream).Position -= newPosition - currentPosition;
-            this.readerStream.NotifyStreamChanged(this.Encoding);
+            ((MemoryStream)this._readerStream.BaseStream).Write(ba, (int)currentPosition, (int)newPosition - (int)currentPosition);
+            ((MemoryStream)this._readerStream.BaseStream).Position -= newPosition - currentPosition;
+            this._readerStream.NotifyStreamChanged(this.Encoding);
         }
 
         /// <inheritdoc />
@@ -109,9 +90,9 @@ namespace Mudpie.Console.Scripting
             this.Flush();
             var newPosition = this.BaseStream.Position;
             var ba = ((MemoryStream)this.BaseStream).ToArray();
-            ((MemoryStream)this.readerStream.BaseStream).Write(ba, (int)currentPosition, (int)newPosition - (int)currentPosition);
-            ((MemoryStream)this.readerStream.BaseStream).Position -= newPosition - currentPosition;
-            this.readerStream.NotifyStreamChanged(this.Encoding);
+            ((MemoryStream)this._readerStream.BaseStream).Write(ba, (int)currentPosition, (int)newPosition - (int)currentPosition);
+            ((MemoryStream)this._readerStream.BaseStream).Position -= newPosition - currentPosition;
+            this._readerStream.NotifyStreamChanged(this.Encoding);
         }
 
         /// <inheritdoc />

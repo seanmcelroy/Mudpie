@@ -21,7 +21,31 @@
         private readonly Data.Program _program;
 
         /// <summary>
-        /// Gets or sets the current state of the execution context
+        /// Initializes a new instance of the <see cref="Context{T}"/> class.
+        /// </summary>
+        /// <param name="program">The script to execute</param>
+        public Context([NotNull] Data.Program program)
+        {
+            if (program == null)
+                throw new ArgumentNullException(nameof(program));
+
+            this._program = program;
+            this.State = ContextState.Loaded;
+        }
+
+        private Context([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
+        {
+            if (string.IsNullOrWhiteSpace(errorMessage))
+                throw new ArgumentNullException(nameof(errorMessage));
+
+            this._program = program;
+            this.ErrorNumber = errorNumber;
+            this.ErrorMessage = errorMessage;
+            this.State = ContextState.Errored;
+        }
+
+        /// <summary>
+        /// Gets the current state of the execution context
         /// </summary>
         public ContextState State { get; private set; }
 
@@ -43,32 +67,6 @@
         /// Gets or sets the feedback provided by the output of the executing program
         /// </summary>
         public Queue<string> Output { get; private set; } = new Queue<string>();
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Context{T}"/> class.
-        /// </summary>
-        /// <param name="script">
-        /// The script to execute
-        /// </param>
-        public Context([NotNull] Data.Program program)
-        {
-            if (program == null)
-                throw new ArgumentNullException(nameof(program));
-
-            this._program = program;
-            this.State = ContextState.Loaded;
-        }
-
-        private Context([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
-        {
-            if (string.IsNullOrWhiteSpace(errorMessage))
-                throw new ArgumentNullException(nameof(errorMessage));
-
-            this._program = program;
-            this.ErrorNumber = errorNumber;
-            this.ErrorMessage = errorMessage;
-            this.State = ContextState.Errored;
-        }
 
         [NotNull, Pure]
         public static Context<T> Error([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)

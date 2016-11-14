@@ -1,5 +1,15 @@
-﻿namespace Mudpie.Console
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="LogUtility.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   A utility class that provides extension methods to log4net that allow for Trace and Verbose logging levels.
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console
 {
+    using System;
     using System.Reflection;
 
     using JetBrains.Annotations;
