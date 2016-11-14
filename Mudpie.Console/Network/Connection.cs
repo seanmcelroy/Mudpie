@@ -275,42 +275,83 @@ namespace Mudpie.Console.Network
                     else
                     {
                         #region Parse words into parts of speech
-                        var wordMatch = Regex.Match(content, @"([^\s]*(""[^""]*"")[^\s]*)|([^\s""]+)");
-                        if (!wordMatch.Success)
+                        var wordMatches = Regex.Matches(content, @"([^\s]*(""[^""]*"")[^\s]*)|([^\s""]+)");
+                        if (wordMatches.Count < 1)
                         {
                             await this.SendAsync("What?\r\n");
                             return;
                         }
                         
-                        var words = wordMatch.Groups.Cast<Group>().Where(g => g.Success).Select(g => g.Value.Replace("\"", "")).ToArray();
+                        var words = wordMatches.Cast<Match>().Select(m => m.Groups[0].Value).ToArray();
                         var verb = words.ElementAtOrDefault(0);
+                        for (var i = 1; i < words.Length; i++)
+                            words[i] = words[i].Replace(@"\u001", "").Replace("\"", "");
+
                         var prepositions = new[]
                         {
-                            "with", "using", "at","to", "in front of","in", "inside","into","on top of","on","onto","upon","out of","from inside","from","over","through","under","underneath","beneath","behind","beside","for","about","off","off of"
+                            "with", "using", "at","to", "in front of","in", "inside","into","on top of","on","onto","upon","out of","from inside","from","over","through","under","underneath","beneath","behind","beside","for","about","as","off","off of"
                         };
 
                         string prep = null;
                         int prepFoundStart = -1;
-                        foreach (var p in prepositions)
-                            if (content.IndexOf(p,verb.Length) > -1)
+                        foreach (var word in words.Skip(1))
+                        {
+                            foreach (var p in prepositions)
                             {
-                                prep = p;
-                                prepFoundStart = content.IndexOf(prep, verb.Length);
-                                break;
+                                if (word.IndexOf(p) > -1)
+                                {
+                                    prep = word;
+                                    prepFoundStart = content.IndexOf(word, verb.Length);
+                                    break;
+                                }
                             }
+
+                            if (prep != null)
+                                break;
+                        }
 
                         string indirectObject = null;
                         string directObject = null;
                         if (prep != null)
                         {
-                            directObject = content.Substring(verb.Length, prepFoundStart - verb.Length).Trim();
-                            indirectObject = content.Substring(prepFoundStart + prep.Length).Trim();
+                            directObject = content.Substring(verb.Length, prepFoundStart - verb.Length).Replace(@"\u001", "").Replace("\"", "").Trim();
+                            indirectObject = content.Substring(prepFoundStart + prep.Length).Replace(@"\u001", "").Replace("\"", "").Trim();
                         }
                         else
-                            directObject = content.Substring(verb.Length).Trim();
+                            directObject = content.Substring(verb.Length).Replace(@"\u001", "").Replace("\"", "").Trim();
 
-                        await this.SendAsync($"VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}\r\n");
+                        _Logger.Verbose($"{content.TrimEnd('\r','\n')} => VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}");
                         #endregion
+
+                        #region Matching
+                        var matcher = new Func<string, Task<DbRef>>(async s =>
+                       {
+                           // Did they provide a DbRef?
+                           DbRef reference;
+                           if (DbRef.TryParse(s, out reference))
+                           {
+                               // Only return the reference if the object exists.
+                               if (await ObjectBase.ExistsAsync(_server.ScriptingEngine.Redis, reference))
+                                   return reference;
+                               else
+                                   return DbRef.NOTHING;
+                           }
+
+                           // Is it a special pronoun?
+                           if (string.Compare(s, "me", StringComparison.InvariantCultureIgnoreCase) == 0)
+                               return this.Identity == null ? DbRef.NOTHING : this.Identity.DbRef;
+                           if (string.Compare(s, "here", StringComparison.InvariantCultureIgnoreCase) == 0)
+                               return this.Identity == null ? DbRef.NOTHING : this.Identity.Location;
+
+                           return DbRef.NOTHING;
+                       });
+
+                        var directObjectReference = directObject == null ? DbRef.NOTHING : await matcher.Invoke(directObject);
+                        var indirectObjectReference = indirectObject == null ? DbRef.NOTHING : await matcher.Invoke(indirectObject);
+                        _Logger.Verbose($"{directObject} => REF: {directObjectReference}");
+                        _Logger.Verbose($"{indirectObject} => REF: {indirectObjectReference}");
+                        #endregion
+
 
 
                         var command = content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant();

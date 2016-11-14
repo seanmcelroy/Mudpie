@@ -125,5 +125,20 @@ namespace Mudpie.Scripting.Common
         {
             return this._referenceNumber.GetHashCode();
         }
+
+        public static bool TryParse(string referenceString, out DbRef reference)
+        {
+            reference = NOTHING;
+
+            if (!referenceString.StartsWith("#"))
+                return false;
+
+            int refNumber;
+            if (!int.TryParse(referenceString.Substring(1), out refNumber))
+                return false;
+
+            reference = referenceString;
+            return true;
+        }
     }
 }

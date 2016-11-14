@@ -10,12 +10,14 @@
 namespace Mudpie.Console.Data
 {
     using System;
+    using System.Linq;
 
     using JetBrains.Annotations;
 
     using Mudpie.Scripting.Common;
 
     using StackExchange.Redis.Extensions.Core;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// The base definition of any object in the MUD
@@ -88,12 +90,35 @@ namespace Mudpie.Console.Data
         [NotNull]
         public static T Create<T>([NotNull] ICacheClient redis) where T : ObjectBase, new()
         {
+            if (redis == null)
+                throw new ArgumentNullException(nameof(redis));
+
             var newObject = new T
                                 {
                                     DbRef = Convert.ToInt32(redis.Database.StringIncrement("mudpie::dbref:counter"))
                                 };
 
             return newObject;
+        }
+
+        public static async Task<bool> ExistsAsync([NotNull] ICacheClient redis, DbRef reference)
+        {
+            if (redis == null)
+                throw new ArgumentNullException(nameof(redis));
+
+            var referenceString = "\""+reference.ToString()+"\"";
+
+            var tasks = new[]
+            {
+                redis.Database.SetContainsAsync($"mudpie::actions", referenceString),
+                redis.Database.SetContainsAsync($"mudpie::players",referenceString),
+                redis.Database.SetContainsAsync($"mudpie::programs", referenceString),
+                redis.Database.SetContainsAsync($"mudpie::rooms",referenceString)
+            };
+
+            await Task.WhenAll(tasks);
+
+            return tasks.Any(t => t.Result);
         }
     }
 }
