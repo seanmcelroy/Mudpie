@@ -204,8 +204,6 @@ namespace Mudpie.Console.Network
 
             Debug.Assert(this.stream != null, "The stream was 'null', but it should not have been because the connection was accepted and processing is beginning.");
 
-            bool send403;
-
             try
             {
                 while (true)
@@ -233,6 +231,10 @@ namespace Mudpie.Console.Network
                         // Read some more.
                         continue;
                     }
+
+                    // Clear builder FIRST in case another command comes in while executing.
+                    this.builder.Clear();
+
 
                     // All the data has been read from the 
                     // client. Display it on the console.
@@ -280,256 +282,258 @@ namespace Mudpie.Console.Network
                         Debug.Assert(this.programInputHandler != null, "this._programInputHandler != null");
                         this.programInputHandler.Invoke(content);
                     }
-                    else if (
-                        BuiltInCommandDirectory.ContainsKey(
-                            content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant()))
-                    {
-                        try
-                        {
-                            if (this.ShowCommands)
-                            {
-                                Logger.TraceFormat(
-                                    "{0}:{1} >{2}> {3}",
-                                    this.RemoteAddress,
-                                    this.RemotePort,
-                                    ">",
-                                    content.TrimEnd('\r', '\n'));
-                            }
-
-                            var result = await BuiltInCommandDirectory[content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant()].Invoke(this, content);
-
-                            if (!result.IsHandled)
-                            {
-                                await this.SendAsync("500 Unknown command\r\n");
-                            }
-                            else if (result.MessageHandler != null)
-                            {
-                                this.inProcessCommand = result;
-                            }
-                            else if (result.IsQuitting)
-                            {
-                                return;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            send403 = true;
-                            Logger.Error("Exception processing a command", ex);
-                            break;
-                        }
-                    }
                     else
                     {
-                        var wordMatches = Regex.Matches(content, @"([^\s]*(""[^""]*"")[^\s]*)|([^\s""]+)");
-                        if (wordMatches.Count < 1)
-                        {
-                            await this.SendAsync("What?\r\n");
-                            return;
-                        }
+                        await this.ProcessMessageAsync(content, cancellationToken);
+                    }
+                }
+            }
+            catch (DecoderFallbackException dfe)
+            {
+                Logger.Error("Decoder Fallback Exception socket " + this.RemoteAddress, dfe);
+            }
+            catch (IOException se)
+            {
+                Logger.Error("I/O Exception on socket " + this.RemoteAddress, se);
+            }
+            catch (SocketException se)
+            {
+                Logger.Error("Socket Exception on socket " + this.RemoteAddress, se);
+            }
+            catch (NotSupportedException nse)
+            {
+                Logger.Error("Not Supported Exception", nse);
+            }
+            catch (ObjectDisposedException ode)
+            {
+                Logger.Error("Object Disposed Exception", ode);
+            }
+        }
 
-                        var words = wordMatches.Cast<Match>().Select(m => m.Groups[0].Value).ToArray();
-                        var verb = words.ElementAtOrDefault(0);
-                        for (var i = 1; i < words.Length; i++)
-                        {
-                            words[i] = words[i].Replace(@"\u001", string.Empty).Replace("\"", string.Empty);
-                        }
+        private async Task<bool> ProcessMessageAsync(
+            string content,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            if (BuiltInCommandDirectory.ContainsKey(content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant()))
+            {
+                try
+                {
+                    if (this.ShowCommands)
+                    {
+                        Logger.TraceFormat(
+                            "{0}:{1} >{2}> {3}",
+                            this.RemoteAddress,
+                            this.RemotePort,
+                            ">",
+                            content.TrimEnd('\r', '\n'));
+                    }
 
-                        var prepositions = new[]
-                                               {
-                                                   "with", "using", "at", "to", "in front of", "in", "inside", "into",
-                                                   "on top of", "on", "onto", "upon", "out of", "from inside", "from",
-                                                   "over", "through", "under", "underneath", "beneath", "behind",
-                                                   "beside", "for", "about", "as", "off", "off of"
-                                               };
+                    var result =
+                        await
+                            BuiltInCommandDirectory[content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant()]
+                                .Invoke(this, content);
 
-                        string prep = null;
-                        var prepFoundStart = -1;
-                        foreach (var word in words.Skip(1))
-                        {
-                            foreach (var p in prepositions)
-                            {
-                                if (word.IndexOf(p, StringComparison.OrdinalIgnoreCase) > -1)
-                                {
-                                    prep = word;
-                                    prepFoundStart = content.IndexOf(word, verb.Length, StringComparison.Ordinal);
-                                    break;
-                                }
-                            }
+                    if (!result.IsHandled)
+                    {
+                        await this.SendAsync("500 Unknown command\r\n");
+                    }
+                    else if (result.MessageHandler != null)
+                    {
+                        this.inProcessCommand = result;
+                    }
+                    else if (result.IsQuitting)
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error("Exception processing a command", ex);
+                    return false;
+                }
+            }
+            else
+            {
+                var wordMatches = Regex.Matches(content, @"([^\s]*(""[^""]*"")[^\s]*)|([^\s""]+)");
+                if (wordMatches.Count < 1)
+                {
+                    await this.SendAsync("What?\r\n");
+                    return false;
+                }
 
-                            if (prep != null)
-                            {
-                                break;
-                            }
-                        }
+                var words = wordMatches.Cast<Match>().Select(m => m.Groups[0].Value).ToArray();
+                var verb = words.ElementAtOrDefault(0);
+                Debug.Assert(!string.IsNullOrWhiteSpace("verb"), "Verb not specified");
 
-                        string indirectObject = null;
-                        string directObject;
-                        if (prep != null)
-                        {
-                            directObject =
-                                content.Substring(verb.Length, prepFoundStart - verb.Length)
-                                    .Replace(@"\u001", string.Empty)
-                                    .Replace("\"", string.Empty)
-                                    .Trim();
-                            indirectObject =
-                                content.Substring(prepFoundStart + prep.Length)
-                                    .Replace(@"\u001", string.Empty)
-                                    .Replace("\"", string.Empty)
-                                    .Trim();
-                        }
-                        else
-                        {
-                            directObject =
-                                content.Substring(verb.Length)
-                                    .Replace(@"\u001", string.Empty)
-                                    .Replace("\"", string.Empty)
-                                    .Trim();
-                        }
+                for (var i = 1; i < words.Length; i++)
+                {
+                    words[i] = words[i].Replace(@"\u001", string.Empty).Replace("\"", string.Empty);
+                }
 
-                        Logger.Verbose(
-                            $"{content.TrimEnd('\r', '\n')} => VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}");
+                var prepositions = new[]
+                                       {
+                                           "with", "using", "at", "to", "in front of", "in", "inside", "into",
+                                           "on top of", "on", "onto", "upon", "out of", "from inside", "from", "over",
+                                           "through", "under", "underneath", "beneath", "behind", "beside", "for",
+                                           "about", "as", "off", "off of"
+                                       };
 
-                        #region Matching
-                        var directObjectReference = directObject == null
-                                                        ? DbRef.NOTHING
-                                                        : await
-                                                              MatchUtility.MatchObjectAsync(
-                                                                  this.Identity,
-                                                                  this.server.ScriptingEngine.Redis,
-                                                                  directObject);
-                        Logger.Verbose($"{directObject} => REF: {directObjectReference}");
-                        var indirectObjectReference = indirectObject == null
-                                                          ? DbRef.NOTHING
-                                                          : await
-                                                                MatchUtility.MatchObjectAsync(
-                                                                    this.Identity,
-                                                                    this.server.ScriptingEngine.Redis,
-                                                                    indirectObject);
-                        Logger.Verbose($"{indirectObject} => REF: {indirectObjectReference}");
-                        var verbReference = verb == null
+                string prep = null;
+                var prepFoundStart = -1;
+                foreach (var word in words.Skip(1))
+                {
+                    if (prepositions.Any(p => word.IndexOf(p, StringComparison.OrdinalIgnoreCase) > -1))
+                    {
+                        prep = word;
+                        prepFoundStart = content.IndexOf(word, verb.Length, StringComparison.Ordinal);
+                    }
+
+                    if (prep != null)
+                    {
+                        break;
+                    }
+                }
+
+                string indirectObject = null;
+                string directObject;
+                if (prep != null)
+                {
+                    directObject =
+                        content.Substring(verb.Length, prepFoundStart - verb.Length)
+                            .Replace(@"\u001", string.Empty)
+                            .Replace("\"", string.Empty)
+                            .Trim();
+                    indirectObject =
+                        content.Substring(prepFoundStart + prep.Length)
+                            .Replace(@"\u001", string.Empty)
+                            .Replace("\"", string.Empty)
+                            .Trim();
+                }
+                else
+                {
+                    directObject =
+                        content.Substring(verb.Length)
+                            .Replace(@"\u001", string.Empty)
+                            .Replace("\"", string.Empty)
+                            .Trim();
+                }
+
+                Logger.Verbose(
+                    $"{content.TrimEnd('\r', '\n')} => VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}");
+
+                #region Matching
+
+                var directObjectReference = directObject == null
                                                 ? DbRef.NOTHING
                                                 : await
-                                                      MatchUtility.MatchVerbAsync(
+                                                      MatchUtility.MatchObjectAsync(
                                                           this.Identity,
                                                           this.server.ScriptingEngine.Redis,
-                                                          verb,
-                                                          directObjectReference,
-                                                          indirectObjectReference);
-                        Logger.Verbose($"{verb} => REF: {verbReference}");
-                        #endregion
+                                                          directObject);
+                Logger.Verbose($"{directObject} => REF: {directObjectReference}");
+                var indirectObjectReference = indirectObject == null
+                                                  ? DbRef.NOTHING
+                                                  : await
+                                                        MatchUtility.MatchObjectAsync(
+                                                            this.Identity,
+                                                            this.server.ScriptingEngine.Redis,
+                                                            indirectObject);
+                Logger.Verbose($"{indirectObject} => REF: {indirectObjectReference}");
+                var verbReference = verb == null
+                                        ? DbRef.NOTHING
+                                        : await
+                                              MatchUtility.MatchVerbAsync(
+                                                  this.Identity,
+                                                  this.server.ScriptingEngine.Redis,
+                                                  verb,
+                                                  directObjectReference,
+                                                  indirectObjectReference);
+                Logger.Verbose($"{verb} => REF: {verbReference}");
 
-                        if (verbReference.Equals(DbRef.AMBIGUOUS))
-                        {
-                            await this.SendAsync("Which one?\r\n");
-                            continue;
-                        }
+                #endregion
 
-                        if (verbReference.Equals(DbRef.FAILED_MATCH))
-                        {
-                            await this.SendAsync("Er?\r\n");
-                            continue;
-                        }
+                if (verbReference.Equals(DbRef.AMBIGUOUS))
+                {
+                    await this.SendAsync("Which one?\r\n");
+                    return false;
+                }
 
-                        var link = await Link.GetAsync(this.server.ScriptingEngine.Redis, verbReference);
-                        Debug.Assert(link != null, "link != null");
+                if (verbReference.Equals(DbRef.FAILED_MATCH))
+                {
+                    await this.SendAsync("Er?\r\n");
+                    return false;
+                }
 
-                        var target = await ObjectBase.GetAsync(this.server.ScriptingEngine.Redis, link.Target);
-                        if (target == null)
-                        {
-                            await this.SendAsync("You peer closer and notice a rip in the space-time continuum...\r\n");
-                            continue;
-                        }
+                var link = await Link.GetAsync(this.server.ScriptingEngine.Redis, verbReference);
+                Debug.Assert(link != null, "link != null");
 
-                        if (target is Program)
-                        {
-                            // Spawn the program as an asychronous task (no await) so input can still be processed on this connection
+                var target = await ObjectBase.GetAsync(this.server.ScriptingEngine.Redis, link.Target);
+                if (target == null)
+                {
+                    await this.SendAsync("You peer closer and notice a rip in the space-time continuum...\r\n");
+                    return false;
+                }
+
+                if (target is Program)
+                {
+                    // Spawn the program as an asychronous task (no await) so input can still be processed on this connection
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                            Task.Factory.StartNew(
-                                async () =>
-                                {
-                                    var context =
+                    Task.Factory.StartNew(
+                        async () =>
+                            {
+                                var context =
                                     await
                                         this.server.ScriptingEngine.RunProgramAsync<int>(
                                             target.DbRef,
                                             this.Identity,
                                             this,
                                             cancellationToken);
-                                    if (context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound
-                                        || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
+                                if (context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound
+                                    || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
+                                {
+                                    await this.SendAsync("Huh?\r\n\r\n");
+                                }
+                                else if (context.ErrorNumber == Scripting.ContextErrorNumber.AuthenticationRequired)
+                                {
+                                    await this.SendAsync("You must be logged in to use that command.\r\n\r\n");
+                                }
+                                else
+                                {
+                                    switch (context.State)
                                     {
-                                        await this.SendAsync("Huh?\r\n\r\n");
+                                        case Scripting.ContextState.Aborted:
+                                            await this.SendAsync("Aborted.\r\n");
+                                            break;
+                                        case Scripting.ContextState.Errored:
+                                            await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n");
+                                            break;
+                                        case Scripting.ContextState.Killed:
+                                            await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n");
+                                            break;
+                                        case Scripting.ContextState.Loaded:
+                                            await
+                                                this.SendAsync(
+                                                    $"STUCK: {context.ProgramName} loaded but not completed.\r\n");
+                                            break;
+                                        case Scripting.ContextState.Paused:
+                                            await this.SendAsync($"Paused: {context.ProgramName}.\r\n");
+                                            break;
+                                        case Scripting.ContextState.Running:
+                                            await this.SendAsync($"Running... {context.ProgramName}.\r\n");
+                                            break;
+                                        case Scripting.ContextState.Completed:
+                                            Logger.Verbose(
+                                                $"{this.Identity?.Name}> Run of {context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
+                                            break;
                                     }
-                                    else if (context.ErrorNumber == Scripting.ContextErrorNumber.AuthenticationRequired)
-                                    {
-                                        await this.SendAsync("You must be logged in to use that command.\r\n\r\n");
-                                    }
-                                    else
-                                    {
-                                        switch (context.State)
-                                        {
-                                            case Scripting.ContextState.Aborted:
-                                                await this.SendAsync("Aborted.\r\n");
-                                                break;
-                                            case Scripting.ContextState.Errored:
-                                                await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n");
-                                                break;
-                                            case Scripting.ContextState.Killed:
-                                                await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n");
-                                                break;
-                                            case Scripting.ContextState.Loaded:
-                                                await
-                                                    this.SendAsync(
-                                                        $"STUCK: {context.ProgramName} loaded but not completed.\r\n");
-                                                break;
-                                            case Scripting.ContextState.Paused:
-                                                await this.SendAsync($"Paused: {context.ProgramName}.\r\n");
-                                                break;
-                                            case Scripting.ContextState.Running:
-                                                await this.SendAsync($"Running... {context.ProgramName}.\r\n");
-                                                break;
-                                            case Scripting.ContextState.Completed:
-                                                Logger.Verbose(
-                                                    $"{this.Identity?.Name}> Run of {context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
-                                                break;
-                                        }
-                                    }
-                                },
-                                cancellationToken);
+                                }
+                            },
+                        cancellationToken);
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                        }
-                    }
-
-                    this.builder.Clear();
                 }
             }
-            catch (DecoderFallbackException dfe)
-            {
-                send403 = true;
-                Logger.Error("Decoder Fallback Exception socket " + this.RemoteAddress, dfe);
-            }
-            catch (IOException se)
-            {
-                send403 = true;
-                Logger.Error("I/O Exception on socket " + this.RemoteAddress, se);
-            }
-            catch (SocketException se)
-            {
-                send403 = true;
-                Logger.Error("Socket Exception on socket " + this.RemoteAddress, se);
-            }
-            catch (NotSupportedException nse)
-            {
-                Logger.Error("Not Supported Exception", nse);
-                return;
-            }
-            catch (ObjectDisposedException ode)
-            {
-                Logger.Error("Object Disposed Exception", ode);
-                return;
-            }
 
-            if (send403)
-                await this.SendAsync("403 Archive server temporarily offline\r\n");
+            return false;
         }
 
         /// <summary>

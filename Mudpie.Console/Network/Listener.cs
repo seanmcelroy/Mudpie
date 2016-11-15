@@ -12,6 +12,8 @@ namespace Mudpie.Console.Network
     using System;
     using System.Net;
     using System.Net.Sockets;
+    using System.Threading;
+    using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
@@ -45,7 +47,8 @@ namespace Mudpie.Console.Network
 
         public PortClass PortType { get; set; }
 
-        public async void StartAccepting()
+        [NotNull]
+        public async Task StartAcceptingAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             // Establish the local endpoint for the socket.
             var localEndPoint = new IPEndPoint(IPAddress.Any, ((IPEndPoint)this.LocalEndpoint).Port);
@@ -72,7 +75,7 @@ namespace Mudpie.Console.Network
                     var connection = new Connection(this.server, handler, stream);
                     this.server.AddConnection(connection);
 
-                    connection.Process();
+                    connection.Process(cancellationToken);
                 }
             }
             catch (Exception ex)

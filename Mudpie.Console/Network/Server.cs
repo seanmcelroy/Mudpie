@@ -136,8 +136,10 @@ namespace Mudpie.Console.Network
         [StorePermission(SecurityAction.Demand, EnumerateCertificates = true, OpenStore = true)]
         public void Start()
         {
-            this.listeners.Clear();
+            var cts = new CancellationTokenSource();
 
+            this.listeners.Clear();
+            
             foreach (var clearPort in this.ClearPorts)
             {
                 // Establish the local endpoint for the socket.
@@ -149,7 +151,7 @@ namespace Mudpie.Console.Network
                     PortType = PortClass.ClearText
                 };
 
-                this.listeners.Add(new Tuple<Thread, Listener>(new Thread(listener.StartAccepting), listener));
+                this.listeners.Add(new Tuple<Thread, Listener>(new Thread(async () => await listener.StartAcceptingAsync(cts.Token)), listener));
             }
 
             foreach (var listener in this.listeners)
@@ -165,6 +167,7 @@ namespace Mudpie.Console.Network
                 catch (OutOfMemoryException oom)
                 {
                     Logger.Error("Unable to start listener thread.  Not enough memory.", oom);
+                    cts.Cancel();
                 }
             }
         }
