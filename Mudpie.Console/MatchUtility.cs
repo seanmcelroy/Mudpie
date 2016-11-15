@@ -14,9 +14,10 @@ namespace Mudpie.Console
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
 
+    using Data;
+
     using JetBrains.Annotations;
 
-    using Mudpie.Console.Data;
     using Mudpie.Scripting.Common;
 
     using StackExchange.Redis.Extensions.Core;
@@ -33,9 +34,36 @@ namespace Mudpie.Console
         /// <param name="redis">The client proxy to the underlying data store</param>
         /// <param name="text">The verb the player entered</param>
         /// <returns>The <see cref="DbRef"/> of the action/link, if it could be located</returns>
-        public static async Task<DbRef> MatchVerbAsync([CanBeNull] Player player, [NotNull] ICacheClient redis, [CanBeNull] string text)
+        public static async Task<DbRef> MatchVerbAsync([CanBeNull] Player player, [NotNull] ICacheClient redis, [NotNull] string text, DbRef directObjectRef, DbRef indirectObjectRef)
         {
-            return await MatchTypeAsync<Link>(player, redis, text);
+            var matched = await MatchTypeAsync<Link>(player, redis, text);
+
+            if (!matched.Equals(DbRef.FAILED_MATCH))
+                return matched;
+
+            // We didn't find a verb, so try hunting on the Direct Object
+            if (!directObjectRef.Equals(DbRef.AMBIGUOUS) && !directObjectRef.Equals(DbRef.FAILED_MATCH) && !directObjectRef.Equals(DbRef.NOTHING))
+            {
+                var exactMatch = DbRef.FAILED_MATCH;
+                var partialMatch = DbRef.FAILED_MATCH;
+
+                var directObject = await CacheManager.LookupOrRetrieveAsync(directObjectRef, redis, async d => await ObjectBase.GetAsync(redis, d));
+                MatchTypeOnObject<Link>(redis, text, directObject, ref exactMatch, ref partialMatch);
+                return !exactMatch.Equals(DbRef.AMBIGUOUS) && !exactMatch.Equals(DbRef.FAILED_MATCH) ? exactMatch : partialMatch;
+            }
+
+            // We didn't find a verb, so try hunting on the Indirect Object
+            if (!indirectObjectRef.Equals(DbRef.AMBIGUOUS) && !indirectObjectRef.Equals(DbRef.FAILED_MATCH) && !indirectObjectRef.Equals(DbRef.NOTHING))
+            {
+                var exactMatch = DbRef.FAILED_MATCH;
+                var partialMatch = DbRef.FAILED_MATCH;
+
+                var indirectObject = await CacheManager.LookupOrRetrieveAsync(indirectObjectRef, redis, async d => await ObjectBase.GetAsync(redis, d));
+                MatchTypeOnObject<Link>(redis, text, indirectObject, ref exactMatch, ref partialMatch);
+                return !exactMatch.Equals(DbRef.AMBIGUOUS) && !exactMatch.Equals(DbRef.FAILED_MATCH) ? exactMatch : partialMatch;
+            }
+
+            return DbRef.FAILED_MATCH;
         }
 
         /// <summary>
@@ -91,24 +119,14 @@ namespace Mudpie.Console
                 return DbRef.NOTHING;
 
             var exactMatch = DbRef.FAILED_MATCH;
-            var paritalMatch = DbRef.FAILED_MATCH;
+            var partialMatch = DbRef.FAILED_MATCH;
 
             // Places to check - #1 - The player who typed the command
             if (player?.Contents != null)
                 foreach (var playerItem in player.Contents)
                 {
                     var playerItemObject = await CacheManager.LookupOrRetrieveAsync(playerItem, redis, async d => await ObjectBase.GetAsync(redis, d));
-                    if (playerItemObject?.DataObject is T)
-                    {
-                        if (string.Compare(playerItemObject.DataObject.Name, text, StringComparison.OrdinalIgnoreCase) == 0)
-                            exactMatch += playerItemObject.DataObject.DbRef;
-                        else if (playerItemObject.DataObject.Aliases != null && playerItemObject.DataObject.Aliases.Any(a => string.Compare(a, text, StringComparison.OrdinalIgnoreCase) == 0))
-                            exactMatch += playerItemObject.DataObject.DbRef;
-                        else if (Regex.IsMatch(text, playerItemObject.DataObject.Name.Replace("*", ".*?"), RegexOptions.IgnoreCase))
-                            paritalMatch += playerItemObject.DataObject.DbRef;
-                        else if (playerItemObject.DataObject.Aliases != null && playerItemObject.DataObject.Aliases.Any(a => Regex.IsMatch(text, playerItemObject.DataObject.Name.Replace("*", ".*?"), RegexOptions.IgnoreCase)))
-                            paritalMatch += playerItemObject.DataObject.DbRef;
-                    }
+                    MatchTypeOnObject<T>(redis, text, playerItemObject, ref exactMatch, ref partialMatch);
                 }
 
             // Places to check - #2 - The room the player is in
@@ -117,22 +135,24 @@ namespace Mudpie.Console
                 var playerLocationObject = await CacheManager.LookupOrRetrieveAsync(player.Location, redis, async d => await ObjectBase.GetAsync(redis, d));
                 if (playerLocationObject?.Contents != null)
                     foreach (var roomItemObject in playerLocationObject.Contents)
-                    {
-                        if (roomItemObject?.DataObject is T)
-                        {
-                            if (string.Compare(roomItemObject.DataObject.Name, text, StringComparison.OrdinalIgnoreCase) == 0)
-                                exactMatch += roomItemObject.DataObject.DbRef;
-                            else if (roomItemObject.DataObject.Aliases != null && roomItemObject.DataObject.Aliases.Any(a => string.Compare(a, text, StringComparison.OrdinalIgnoreCase) == 0))
-                                exactMatch += roomItemObject.DataObject.DbRef;
-                            else if (Regex.IsMatch(text, roomItemObject.DataObject.Name.Replace("*", ".*?"), RegexOptions.IgnoreCase))
-                                paritalMatch += roomItemObject.DataObject.DbRef;
-                            else if (roomItemObject.DataObject.Aliases != null && roomItemObject.DataObject.Aliases.Any(a => Regex.IsMatch(text, roomItemObject.DataObject.Name.Replace("*", ".*?"), RegexOptions.IgnoreCase)))
-                                paritalMatch += roomItemObject.DataObject.DbRef;
-                        }
-                    }
+                        MatchTypeOnObject<T>(redis, text, roomItemObject, ref exactMatch, ref partialMatch);
             }
 
-            return !exactMatch.Equals(DbRef.AMBIGUOUS) && !exactMatch.Equals(DbRef.FAILED_MATCH) ? exactMatch : paritalMatch;
+            return !exactMatch.Equals(DbRef.AMBIGUOUS) && !exactMatch.Equals(DbRef.FAILED_MATCH) ? exactMatch : partialMatch;
+        }
+        
+        private static void MatchTypeOnObject<T>([NotNull] ICacheClient redis, [NotNull] string text, ComposedObject searchObject, ref DbRef exactMatch, ref DbRef partialMatch)
+        {
+            if (!(searchObject?.DataObject is T))
+                return;
+            if (string.Compare(searchObject.DataObject.Name, text, StringComparison.OrdinalIgnoreCase) == 0)
+                exactMatch += searchObject.DataObject.DbRef;
+            else if (searchObject.DataObject.Aliases != null && searchObject.DataObject.Aliases.Any(a => string.Compare(a, text, StringComparison.OrdinalIgnoreCase) == 0))
+                exactMatch += searchObject.DataObject.DbRef;
+            else if (Regex.IsMatch(text, searchObject.DataObject.Name.Replace("*", ".*?"), RegexOptions.IgnoreCase))
+                partialMatch += searchObject.DataObject.DbRef;
+            else if (searchObject.DataObject.Aliases != null && searchObject.DataObject.Aliases.Any(a => Regex.IsMatch(text, searchObject.DataObject.Name.Replace("*", ".*?"), RegexOptions.IgnoreCase)))
+                partialMatch += searchObject.DataObject.DbRef;
         }
     }
 }

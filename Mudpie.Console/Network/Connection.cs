@@ -322,12 +322,12 @@ namespace Mudpie.Console.Network
                         _Logger.Verbose($"{content.TrimEnd('\r', '\n')} => VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}");
 
                         #region Matching
-                        var verbReference = verb == null ? DbRef.NOTHING : await MatchUtility.MatchVerbAsync(this.Identity, this._server.ScriptingEngine.Redis, verb);
-                        _Logger.Verbose($"{verb} => REF: {verbReference}");
                         var directObjectReference = directObject == null ? DbRef.NOTHING : await MatchUtility.MatchObjectAsync(this.Identity, this._server.ScriptingEngine.Redis, directObject);
                         _Logger.Verbose($"{directObject} => REF: {directObjectReference}");
                         var indirectObjectReference = indirectObject == null ? DbRef.NOTHING : await MatchUtility.MatchObjectAsync(this.Identity, this._server.ScriptingEngine.Redis, indirectObject);
                         _Logger.Verbose($"{indirectObject} => REF: {indirectObjectReference}");
+                        var verbReference = verb == null ? DbRef.NOTHING : await MatchUtility.MatchVerbAsync(this.Identity, this._server.ScriptingEngine.Redis, verb, directObjectReference, indirectObjectReference);
+                        _Logger.Verbose($"{verb} => REF: {verbReference}");
                         #endregion
 
                         var command = content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant();
