@@ -46,6 +46,9 @@ namespace Mudpie.Console.Data
         [CanBeNull]
         public string PasswordSalt { get; set; }
 
+        /// <summary>
+        /// Gets or sets the last login date of the user
+        /// </summary>
         public DateTime? LastLogin { get; set; }
 
         public static Player Create([NotNull] ICacheClient redis, [NotNull] string name, [NotNull] string username)
@@ -56,8 +59,14 @@ namespace Mudpie.Console.Data
             return newPlayer;
         }
 
+        /// <summary>
+        /// Loads a <see cref="Player"/> from the cache or the data store
+        /// </summary>
+        /// <param name="redis">The client proxy to the underlying data store</param>
+        /// <param name="playerRef">The <see cref="DbRef"/> of the <see cref="Player"/> to load</param>
+        /// <returns>The <see cref="Player"/> if found; otherwise, null</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef) => await redis.GetAsync<Player>($"mudpie::player:{playerRef}");
+        public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef) => (Player)(await CacheManager.LookupOrRetrieveAsync(playerRef, redis, async d => await redis.GetAsync<Player>($"mudpie::player:{d}"))).DataObject;
 
         /// <inheritdoc />
         public override bool Equals(object obj)
@@ -87,7 +96,9 @@ namespace Mudpie.Console.Data
         public override async Task SaveAsync(ICacheClient redis)
         {
             if (redis == null)
+            {
                 throw new ArgumentNullException(nameof(redis));
+            }
 
             await redis.SetAddAsync<string>("mudpie::players", this.DbRef);
             await redis.AddAsync($"mudpie::player:{this.DbRef}", this);

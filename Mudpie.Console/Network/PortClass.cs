@@ -17,11 +17,6 @@ namespace Mudpie.Console.Network
         /// <summary>
         /// The connection is clear text and unencrypted
         /// </summary>
-        ClearText,
-
-        /// <summary>
-        /// The connection is encrypted using implicit transport layer security
-        /// </summary>
-        ImplicitTLS
+        ClearText
     }
 }

@@ -1,7 +1,6 @@
 ﻿namespace Mudpie.Console
 {
     using System;
-    using System.Collections.Generic;
     using System.Configuration;
     using System.Diagnostics;
     using System.Linq;
@@ -15,8 +14,6 @@
     using log4net;
     using log4net.Config;
 
-    using Mudpie.Scripting.Common;
-
     using Network;
 
     using Scripting;
@@ -29,7 +26,7 @@
         /// <summary>
         /// The logging utility instance to use to log events from this class
         /// </summary>
-        private static readonly ILog _Logger = LogManager.GetLogger(typeof(Program));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(Program));
 
         /// <summary>
         /// Entry point of the application
@@ -43,7 +40,7 @@
             var config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
             var mudpieConfigurationSection = (MudpieConfigurationSection)config.GetSection("mudpie");
             Debug.Assert(mudpieConfigurationSection != null, "mudpieConfigurationSection != null");
-            _Logger.InfoFormat("Loaded configuration from {0}", config.FilePath);
+            Logger.InfoFormat("Loaded configuration from {0}", config.FilePath);
 
             var godPlayer = new Player
                                 {

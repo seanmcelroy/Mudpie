@@ -35,7 +35,7 @@ namespace Mudpie.Console.Data
         /// <param name="linkRef">The <see cref="DbRef"/> of the link to retrieve from the data store</param>
         /// <returns>The matching <see cref="Link"/>, if it exists for the supplied <paramref name="linkRef"/>; otherwise, null.</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Link> GetAsync([NotNull] ICacheClient redis, DbRef linkRef) => await redis.GetAsync<Link>($"mudpie::link:{linkRef}");
+        public static new async Task<Link> GetAsync([NotNull] ICacheClient redis, DbRef linkRef) => (Link)(await CacheManager.LookupOrRetrieveAsync(linkRef, redis, async d => await redis.GetAsync<Link>($"mudpie::link:{d}"))).DataObject;
 
         /// <inheritdoc />
         public override async Task SaveAsync(ICacheClient redis)

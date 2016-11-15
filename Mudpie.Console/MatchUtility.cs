@@ -33,6 +33,8 @@ namespace Mudpie.Console
         /// <param name="player">The player who entered the verb</param>
         /// <param name="redis">The client proxy to the underlying data store</param>
         /// <param name="text">The verb the player entered</param>
+        /// <param name="directObjectRef">The <see cref="DbRef"/> of the matched direct object</param>
+        /// <param name="indirectObjectRef">The <see cref="DbRef"/> of the matched indirect object</param>
         /// <returns>The <see cref="DbRef"/> of the action/link, if it could be located</returns>
         public static async Task<DbRef> MatchVerbAsync([CanBeNull] Player player, [NotNull] ICacheClient redis, [NotNull] string text, DbRef directObjectRef, DbRef indirectObjectRef)
         {

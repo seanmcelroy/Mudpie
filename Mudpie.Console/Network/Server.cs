@@ -36,19 +36,19 @@ namespace Mudpie.Console.Network
         /// </summary>
         [NotNull]
         // ReSharper disable once AssignNullToNotNullAttribute
-        private static readonly ILog _Logger = LogManager.GetLogger(typeof(Server));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(Server));
 
         /// <summary>
         /// A list of threads and the associated TCP new-connection listeners that are serviced by each by the client
         /// </summary>
         [NotNull]
-        private readonly List<Tuple<Thread, Listener>> _listeners = new List<Tuple<Thread, Listener>>();
+        private readonly List<Tuple<Thread, Listener>> listeners = new List<Tuple<Thread, Listener>>();
 
         /// <summary>
         /// A list of connections currently established to this server instance
         /// </summary>
         [NotNull]
-        private readonly List<Connection> _connections = new List<Connection>();
+        private readonly List<Connection> connections = new List<Connection>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Server"/> class.
@@ -82,7 +82,7 @@ namespace Mudpie.Console.Network
         {
             get
             {
-                return this._connections
+                return this.connections
                     .Where(c => c != null)
                     .Select(c => new ConnectionMetadata
                 {
@@ -136,7 +136,7 @@ namespace Mudpie.Console.Network
         [StorePermission(SecurityAction.Demand, EnumerateCertificates = true, OpenStore = true)]
         public void Start()
         {
-            this._listeners.Clear();
+            this.listeners.Clear();
 
             foreach (var clearPort in this.ClearPorts)
             {
@@ -149,44 +149,44 @@ namespace Mudpie.Console.Network
                     PortType = PortClass.ClearText
                 };
 
-                this._listeners.Add(new Tuple<Thread, Listener>(new Thread(listener.StartAccepting), listener));
+                this.listeners.Add(new Tuple<Thread, Listener>(new Thread(listener.StartAccepting), listener));
             }
 
-            foreach (var listener in this._listeners)
+            foreach (var listener in this.listeners)
             {
                 try
                 {
                     if (listener.Item1 != null)
                     {
                         listener.Item1.Start();
-                        _Logger.InfoFormat("Listening on port {0} ({1})", ((IPEndPoint)listener.Item2.LocalEndpoint).Port, listener.Item2.PortType);
+                        Logger.InfoFormat("Listening on port {0} ({1})", ((IPEndPoint)listener.Item2.LocalEndpoint).Port, listener.Item2.PortType);
                     }
                 }
                 catch (OutOfMemoryException oom)
                 {
-                    _Logger.Error("Unable to start listener thread.  Not enough memory.", oom);
+                    Logger.Error("Unable to start listener thread.  Not enough memory.", oom);
                 }
             }
         }
 
         public void Stop()
         {
-            foreach (var listener in this._listeners)
+            foreach (var listener in this.listeners)
             {
                 try
                 {
                     listener.Item2.Stop();
-                    _Logger.InfoFormat("Stopped listening on port {0} ({1})", ((IPEndPoint)listener.Item2.LocalEndpoint).Port, listener.Item2.PortType);
+                    Logger.InfoFormat("Stopped listening on port {0} ({1})", ((IPEndPoint)listener.Item2.LocalEndpoint).Port, listener.Item2.PortType);
                 }
                 catch (SocketException)
                 {
-                    _Logger.ErrorFormat("Exception attempting to stop listening on port {0} ({1})", ((IPEndPoint)listener.Item2.LocalEndpoint).Port, listener.Item2.PortType);
+                    Logger.ErrorFormat("Exception attempting to stop listening on port {0} ({1})", ((IPEndPoint)listener.Item2.LocalEndpoint).Port, listener.Item2.PortType);
                 }
             }
 
-            Task.WaitAll(this._connections.Select(connection => connection?.Shutdown()).ToArray());
+            Task.WaitAll(this.connections.Select(connection => connection?.Shutdown()).ToArray());
 
-            foreach (var thread in this._listeners)
+            foreach (var thread in this.listeners)
             {
                 try
                 {
@@ -194,14 +194,14 @@ namespace Mudpie.Console.Network
                 }
                 catch (SecurityException se)
                 {
-                    _Logger.Error(
+                    Logger.Error(
                         "Unable to abort the thread due to a security exception.  Application will now exit.",
                         se);
                     Environment.Exit(se.HResult);
                 }
                 catch (ThreadStateException tse)
                 {
-                    _Logger.Error(
+                    Logger.Error(
                         "Unable to abort the thread due to a thread state exception.  Application will now exit.",
                         tse);
                     Environment.Exit(tse.HResult);
@@ -211,17 +211,17 @@ namespace Mudpie.Console.Network
 
         internal void AddConnection([NotNull] Connection connection)
         {
-            this._connections.Add(connection);
-            _Logger.VerboseFormat("Connection from {0}:{1} to {2}:{3}", connection.RemoteAddress, connection.RemotePort, connection.LocalAddress, connection.LocalPort);
+            this.connections.Add(connection);
+            Logger.VerboseFormat("Connection from {0}:{1} to {2}:{3}", connection.RemoteAddress, connection.RemotePort, connection.LocalAddress, connection.LocalPort);
         }
 
         internal void RemoveConnection([NotNull] Connection connection)
         {
-            this._connections.Remove(connection);
+            this.connections.Remove(connection);
             if (connection.Identity == null)
-                _Logger.VerboseFormat("Disconnection from {0}:{1}", connection.RemoteAddress, connection.RemotePort, connection.LocalAddress, connection.LocalPort);
+                Logger.VerboseFormat("Disconnection from {0}:{1}", connection.RemoteAddress, connection.RemotePort, connection.LocalAddress, connection.LocalPort);
             else
-                _Logger.VerboseFormat("Disconnection from {0}:{1} ({2})", connection.RemoteAddress, connection.RemotePort, connection.LocalAddress, connection.LocalPort, connection.Identity.Username);
+                Logger.VerboseFormat("Disconnection from {0}:{1} ({2})", connection.RemoteAddress, connection.RemotePort, connection.LocalAddress, connection.LocalPort, connection.Identity.Username);
         }
         #endregion
     }

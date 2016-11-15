@@ -17,6 +17,8 @@ namespace Mudpie.Console.Scripting
 
     using JetBrains.Annotations;
 
+    using Mudpie.Scripting.Common;
+
     using StackExchange.Redis.Extensions.Core;
     
     /// <summary>
@@ -28,7 +30,7 @@ namespace Mudpie.Console.Scripting
         /// The underlying Redis data store client
         /// </summary>
         [NotNull]
-        private readonly ICacheClient _redis;
+        private readonly ICacheClient redis;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Engine"/> class.
@@ -36,27 +38,36 @@ namespace Mudpie.Console.Scripting
         /// <param name="redis">The client to access the data store</param>
         public Engine([NotNull] ICacheClient redis)
         {
-            this._redis = redis;
+            this.redis = redis;
         }
         
         /// <summary>
         /// Gets the Redis instance used by the engine
         /// </summary>
-        internal ICacheClient Redis => this._redis;
-
+        internal ICacheClient Redis => this.redis;
+        
         [NotNull, ItemNotNull]
-        public async Task<Context<T>> RunProgramAsync<T>([NotNull] string programName, [CanBeNull] ObjectBase trigger, [CanBeNull] Network.Connection connection, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<Context<T>> RunProgramAsync<T>(DbRef programRef, [CanBeNull] ObjectBase trigger, [CanBeNull] Network.Connection connection, CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (string.IsNullOrWhiteSpace(programName))
-                return Context<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No program name was supplied");
+            if (programRef.Equals(DbRef.NOTHING))
+            {
+                return Context<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No program was supplied");
+            }
 
-            var program = await this.LoadProgramAsync(programName);
+            var program = await Program.GetAsync(this.redis, programRef);
             if (program == null)
-                return Context<T>.Error(null, ContextErrorNumber.ProgramNotFound, $"Unable to locate program with name {programName}");
+            {
+                return Context<T>.Error(
+                    null,
+                    ContextErrorNumber.ProgramNotFound,
+                    $"Unable to locate program {programRef}");
+            }
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             if (trigger == null && !program.UnauthenticatedExecution)
+            {
                 return Context<T>.Error(program, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
+            }
 
             var context = new Context<T>(program);
             using (var outputStream = new MemoryStream(2048))
@@ -158,23 +169,7 @@ namespace Mudpie.Console.Scripting
         public async Task<bool> ProgramExistsAsync([NotNull] string programName)
         {
             var normalizedProgramName = programName.ToLowerInvariant();
-            return await this._redis.ExistsAsync($"mudpie::program:{normalizedProgramName}");
-        }
-
-        /// <summary>
-        /// Loads a <see cref="Data.Program"/> from the Redis store
-        /// </summary>
-        /// <param name="programName">The name of the <see cref="Data.Program"/> to load</param>
-        /// <returns>The <see cref="Data.Program"/> if found; otherwise, null</returns>
-        [NotNull, Pure, ItemCanBeNull]
-        public async Task<Program> LoadProgramAsync([NotNull] string programName)
-        {
-            var normalizedProgramName = programName.ToLowerInvariant();
-
-            if (await this._redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
-                return await this._redis.GetAsync<Program>($"mudpie::program:{normalizedProgramName}");
-
-            return null;
+            return await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}");
         }
 
         [NotNull]
@@ -183,15 +178,15 @@ namespace Mudpie.Console.Scripting
             var normalizedProgramName = program.Name.ToLowerInvariant();
 
             // ReSharper disable once PossibleNullReferenceException
-            if (await this._redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
+            if (await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
                 // ReSharper disable once PossibleNullReferenceException
-                await this._redis.ReplaceAsync($"mudpie::program:{normalizedProgramName}", program);
+                await this.redis.ReplaceAsync($"mudpie::program:{normalizedProgramName}", program);
             else
                 // ReSharper disable once PossibleNullReferenceException
-                await this._redis.AddAsync($"mudpie::program:{normalizedProgramName}", program);
+                await this.redis.AddAsync($"mudpie::program:{normalizedProgramName}", program);
 
             // ReSharper disable once PossibleNullReferenceException
-            await this._redis.SetAddAsync("mudpie::programs", normalizedProgramName);
+            await this.redis.SetAddAsync("mudpie::programs", normalizedProgramName);
         }
     }
 }

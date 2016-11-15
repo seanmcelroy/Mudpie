@@ -28,7 +28,7 @@ namespace Mudpie.Console.Scripting
         /// Gets or sets the script to execute
         /// </summary>
         [CanBeNull]
-        private readonly Data.Program _program;
+        private readonly Data.Program program;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Context{T}"/> class.
@@ -36,10 +36,9 @@ namespace Mudpie.Console.Scripting
         /// <param name="program">The script to execute</param>
         public Context([NotNull] Data.Program program)
         {
-            if (program == null)
-                throw new ArgumentNullException(nameof(program));
+            if (program == null) throw new ArgumentNullException(nameof(program));
 
-            this._program = program;
+            this.program = program;
             this.State = ContextState.Loaded;
         }
 
@@ -52,10 +51,9 @@ namespace Mudpie.Console.Scripting
         /// <exception cref="ArgumentNullException">Thrown when a null error message is supplied to this constructor</exception>
         private Context([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
         {
-            if (string.IsNullOrWhiteSpace(errorMessage))
-                throw new ArgumentNullException(nameof(errorMessage));
+            if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
 
-            this._program = program;
+            this.program = program;
             this.ErrorNumber = errorNumber;
             this.ErrorMessage = errorMessage;
             this.State = ContextState.Errored;
@@ -84,7 +82,7 @@ namespace Mudpie.Console.Scripting
         /// <summary>
         /// Gets the name of the program
         /// </summary>
-        public string ProgramName => this._program?.Name;
+        public string ProgramName => this.program?.Name;
 
         /// <summary>
         /// Gets the feedback provided by the output of the executing program
@@ -101,37 +99,43 @@ namespace Mudpie.Console.Scripting
         /// The <see cref="Scripting.Context{T}"/> object representing the error conditions
         /// </returns>
         [NotNull, Pure]
-        public static Context<T> Error([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
+        public static Context<T> Error(
+            [CanBeNull] Data.Program program,
+            ContextErrorNumber errorNumber,
+            [NotNull] string errorMessage)
         {
             return new Context<T>(program, errorNumber, errorMessage);
         }
-            
+
         internal void AppendFeedback([NotNull] string feedback)
         {
-            if (this.Output.Count == 0 || this.Output.Peek().EndsWith("\r\n"))
-                this.Output.Enqueue(feedback);
-            else if (feedback.EndsWith("\r\n"))
-                this.Output.Enqueue(feedback);
+            if (this.Output.Count == 0 || this.Output.Peek().EndsWith("\r\n")) this.Output.Enqueue(feedback);
+            else if (feedback.EndsWith("\r\n")) this.Output.Enqueue(feedback);
             else if (feedback.IndexOf("\r\n", StringComparison.Ordinal) > -1)
             {
                 var lines = feedback.Split(new[] { "\r\n" }, StringSplitOptions.None);
                 for (int i = 0; i < lines.Length; i++)
-                    if (i < lines.Length - 1)
-                        this.Output.Enqueue(lines[i] + "\r\n");
-                    else
-                        this.Output.Enqueue(lines[i]);
+                    if (i < lines.Length - 1) this.Output.Enqueue(lines[i] + "\r\n");
+                    else this.Output.Enqueue(lines[i]);
             }
-            else
-                this.Output.Enqueue(feedback);
+            else this.Output.Enqueue(feedback);
         }
 
         [NotNull]
-        public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task RunAsync(
+            [CanBeNull] object globals,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
+            if (this.program == null)
+            {
+                throw new InvalidOperationException("this.program == null");
+            }
+
+
             this.State = ContextState.Running;
             try
             {
-                var state = await this._program.Compile<T>().RunAsync(globals, cancellationToken);
+                var state = await this.program.Compile<T>().RunAsync(globals, cancellationToken);
                 this.ReturnValue = state.ReturnValue;
                 this.State = ContextState.Completed;
             }

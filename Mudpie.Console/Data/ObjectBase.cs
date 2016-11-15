@@ -145,20 +145,31 @@ namespace Mudpie.Console.Data
 
             await Task.WhenAll(tasks);
 
-            Debug.Assert(tasks!= null);
-            Debug.Assert(tasks[0] != null);
-            Debug.Assert(tasks[1] != null);
-            Debug.Assert(tasks[2] != null);
-            Debug.Assert(tasks[3] != null);
-
-            // TODO
+            Debug.Assert(tasks != null, "tasks!= null");
+            Debug.Assert(tasks[0] != null, "tasks[0] != null)");
+            Debug.Assert(tasks[1] != null, "tasks[1] != null");
+            Debug.Assert(tasks[2] != null, "tasks[2] != null");
+            Debug.Assert(tasks[3] != null, "tasks[3] != null");
 
             if (tasks[0].Result)
+            {
                 return await Link.GetAsync(redis, reference);
+            }
+
             if (tasks[1].Result)
+            {
                 return await Player.GetAsync(redis, reference);
+            }
+
+            if (tasks[2].Result)
+            {
+                return await Program.GetAsync(redis, reference);
+            }
+
             if (tasks[3].Result)
+            {
                 return await Room.GetAsync(redis, reference);
+            }
 
             throw new NotImplementedException();
         }

@@ -36,13 +36,13 @@ namespace Mudpie.Console.Data
         /// <summary>
         /// The logging utility instance to use to log events from this class
         /// </summary>
-        private static readonly ILog _Logger = LogManager.GetLogger(typeof(Program));
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(Program));
 
         /// <summary>
         /// Once the script is compiled, the finished state is stored here for future executions
         /// </summary>
         [CanBeNull]
-        private Script _compiledScript;
+        private Script compiledScript;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Program"/> class.
@@ -118,6 +118,15 @@ namespace Mudpie.Console.Data
         public bool UnauthenticatedExecution { get; set; }
 
         /// <summary>
+        /// Loads a <see cref="Data.Program"/> from the cache or the data store
+        /// </summary>
+        /// <param name="redis">The client proxy to the underlying data store</param>
+        /// <param name="programRef">The <see cref="DbRef"/> of the <see cref="Data.Program"/> to load</param>
+        /// <returns>The <see cref="Data.Program"/> if found; otherwise, null</returns>
+        [NotNull, Pure, ItemCanBeNull]
+        public static new async Task<Program> GetAsync([NotNull] ICacheClient redis, DbRef programRef) => (Program)(await CacheManager.LookupOrRetrieveAsync(programRef, redis, async d => await redis.GetAsync<Program>($"mudpie::program:{d}"))).DataObject;
+
+        /// <summary>
         /// Compiles the program into a Roslyn Scripting API object that can be executed
         /// </summary>
         /// <typeparam name="T">The return type of the script</typeparam>
@@ -126,9 +135,9 @@ namespace Mudpie.Console.Data
         /// </returns>
         public Script<T> Compile<T>()
         {
-            if (this._compiledScript == null)
+            if (this.compiledScript == null)
             {
-                _Logger.InfoFormat("Compiling program {0}... ", this.Name);
+                Logger.InfoFormat("Compiling program {0}... ", this.Name);
                 var sw = new Stopwatch();
                 sw.Start();
 
@@ -150,13 +159,13 @@ namespace Mudpie.Console.Data
 
                 Debug.Assert(roslynScript != null, "The script object must not be null after appending lines of source script");
                 roslynScript.WithOptions(scriptOptions).Compile();
-                this._compiledScript = roslynScript;
+                this.compiledScript = roslynScript;
 
                 sw.Stop();
-                _Logger.InfoFormat("Compiled program {0} in {1:N2} seconds", this.Name, sw.Elapsed.TotalSeconds);
+                Logger.InfoFormat("Compiled program {0} in {1:N2} seconds", this.Name, sw.Elapsed.TotalSeconds);
             }
 
-            return (Script<T>)this._compiledScript;
+            return (Script<T>)this.compiledScript;
         }
 
         [NotNull, ItemCanBeNull, Pure]

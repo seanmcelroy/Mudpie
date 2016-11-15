@@ -24,7 +24,7 @@ namespace Mudpie.Console.Data
     public class Room : ObjectBase
     {
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Room> GetAsync([NotNull] ICacheClient redis, DbRef roomRef) => await redis.GetAsync<Room>($"mudpie::room:{roomRef}");
+        public static new async Task<Room> GetAsync([NotNull] ICacheClient redis, DbRef roomRef) => (Room)(await CacheManager.LookupOrRetrieveAsync(roomRef, redis, async d => await redis.GetAsync<Room>($"mudpie::room:{d}"))).DataObject;
 
         /// <inheritdoc />
         public override async Task SaveAsync(ICacheClient redis)

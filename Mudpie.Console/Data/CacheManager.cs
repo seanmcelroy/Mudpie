@@ -13,9 +13,9 @@
 
     public static class CacheManager
     {
-        private static readonly MemoryCache _cache = MemoryCache.Default;
+        private static readonly MemoryCache Cache = MemoryCache.Default;
 
-        private static readonly CacheItemPolicy _policy = new CacheItemPolicy
+        private static readonly CacheItemPolicy Policy = new CacheItemPolicy
         {
             SlidingExpiration = new TimeSpan(0, 0, 10, 0, 0)
         };
@@ -39,14 +39,14 @@
                 throw new ArgumentNullException(nameof(retrieveFunction));
             if (reference.Equals(DbRef.NOTHING))
                 return null;
-            if (_cache.Contains(reference))
-                return (ComposedObject)_cache.Get(reference);
+            if (Cache.Contains(reference))
+                return (ComposedObject)Cache.Get(reference);
 
             var obj = await retrieveFunction.Invoke(reference);
             Debug.Assert(obj != null, "obj != null");
 
             var composedObject = new ComposedObject(redis, obj);
-            _cache.Add(reference, composedObject, _policy);
+            Cache.Add(reference, composedObject, Policy);
 
             return composedObject;
         }
