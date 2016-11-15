@@ -9,6 +9,7 @@
 
 namespace Mudpie.Console.Data
 {
+    using System;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
@@ -24,5 +25,15 @@ namespace Mudpie.Console.Data
     {
         [NotNull, Pure, ItemCanBeNull]
         public static new async Task<Room> GetAsync([NotNull] ICacheClient redis, DbRef roomRef) => await redis.GetAsync<Room>($"mudpie::room:{roomRef}");
+
+        /// <inheritdoc />
+        public override async Task SaveAsync(ICacheClient redis)
+        {
+            if (redis == null)
+                throw new ArgumentNullException(nameof(redis));
+
+            await redis.SetAddAsync<string>("mudpie::rooms", this.DbRef);
+            await redis.AddAsync($"mudpie::room:{this.DbRef}", this);
+        }
     }
 }

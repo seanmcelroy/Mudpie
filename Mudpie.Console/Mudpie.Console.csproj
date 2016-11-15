@@ -180,7 +180,9 @@
     <Compile Include="Data\ObjectBase.cs" />
     <Compile Include="Data\Player.cs" />
     <Compile Include="Data\Room.cs" />
+    <Compile Include="Data\Link.cs" />
     <Compile Include="LogUtility.cs" />
+    <Compile Include="MatchUtility.cs" />
     <Compile Include="Network\Connection.cs" />
     <Compile Include="Network\ConnectionMetadata.cs" />
     <Compile Include="Network\ConnectionMode.cs" />

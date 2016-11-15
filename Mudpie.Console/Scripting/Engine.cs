@@ -66,7 +66,7 @@ namespace Mudpie.Console.Scripting
             {
                 var scriptGlobals = new ContextGlobals
                 {
-                    Location = (await CacheManager.LookupOrRetrieveAsync(trigger.Location, this.Redis, async d => await Room.GetAsync(this.Redis, d))).DataObject,
+                    Location = trigger == null ? null : (await CacheManager.LookupOrRetrieveAsync(trigger.Location, this.Redis, async d => await Room.GetAsync(this.Redis, d))).DataObject,
                     TriggerId = trigger?.DbRef,
                     TriggerName = trigger?.Name,
                     TriggerType = trigger is Player ? "PLAYER" : "?",

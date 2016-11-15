@@ -33,6 +33,11 @@ namespace Mudpie.Scripting.Common
         public static readonly DbRef AMBIGUOUS = -1;
 
         /// <summary>
+        /// A value indicating no match could be found
+        /// </summary>
+        public static readonly DbRef FAILED_MATCH = -2;
+
+        /// <summary>
         /// The internal numeric value of the database reference
         /// </summary>
         private readonly int _referenceNumber;
@@ -56,6 +61,30 @@ namespace Mudpie.Scripting.Common
         public static implicit operator string(DbRef reference)
         {
             return "#" + reference._referenceNumber.ToString(@"##000000");
+        }
+
+        public static DbRef operator +(DbRef a, DbRef b)
+        {
+            if (a.Equals(AMBIGUOUS) || b.Equals(AMBIGUOUS))
+                return AMBIGUOUS;
+
+            if (a.Equals(FAILED_MATCH) && b.Equals(FAILED_MATCH))
+                return FAILED_MATCH;
+
+            if (a.Equals(NOTHING))
+                return b;
+            if (b.Equals(NOTHING))
+                return a;
+
+            if (!a.Equals(FAILED_MATCH) && !b.Equals(FAILED_MATCH))
+                return AMBIGUOUS;
+
+            if (a.Equals(FAILED_MATCH))
+                return b;
+            if (b.Equals(FAILED_MATCH))
+                return a;
+
+            throw new InvalidOperationException();
         }
 
         /// <summary>

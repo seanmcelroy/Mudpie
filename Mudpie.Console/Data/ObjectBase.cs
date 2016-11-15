@@ -10,6 +10,7 @@
 namespace Mudpie.Console.Data
 {
     using System;
+    using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
     using System.Threading.Tasks;
@@ -114,11 +115,11 @@ namespace Mudpie.Console.Data
             if (redis == null)
                 throw new ArgumentNullException(nameof(redis));
 
-            var referenceString = "\"" + reference + "\"";
+            var referenceString = "\"" + (string)reference + "\"";
 
             var tasks = new[]
                             {
-                                redis.Database.SetContainsAsync("mudpie::actions", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::links", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::players", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::programs", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::rooms", referenceString)
@@ -132,11 +133,11 @@ namespace Mudpie.Console.Data
         [NotNull, Pure, ItemCanBeNull]
         public static async Task<ObjectBase> GetAsync([NotNull] ICacheClient redis, DbRef reference)
         {
-            var referenceString = "\"" + reference + "\"";
+            var referenceString = "\"" + (string)reference + "\"";
 
             var tasks = new[]
                             {
-                                redis.Database.SetContainsAsync("mudpie::actions", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::links", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::players", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::programs", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::rooms", referenceString)
@@ -152,6 +153,8 @@ namespace Mudpie.Console.Data
 
             // TODO
 
+            if (tasks[0].Result)
+                return await Link.GetAsync(redis, reference);
             if (tasks[1].Result)
                 return await Player.GetAsync(redis, reference);
             if (tasks[3].Result)
@@ -159,5 +162,80 @@ namespace Mudpie.Console.Data
 
             throw new NotImplementedException();
         }
+
+        public void AddContents(params DbRef[] references)
+        {
+            if (references != null)
+                foreach (var reference in references)
+                {
+                    Debug.Assert(!reference.Equals(DbRef.NOTHING), "!reference.Equals(DbRef.NOTHING)");
+                    Debug.Assert(!reference.Equals(DbRef.AMBIGUOUS), "!reference.Equals(DbRef.AMBIGUOUS)");
+                    Debug.Assert(!reference.Equals(DbRef.FAILED_MATCH), "!reference.Equals(DbRef.FAILED_MATCH)");
+
+                    if (this.Contents == null)
+                        this.Contents = new[] { reference };
+                    else
+                    {
+                        var contents = new List<DbRef>(this.Contents)
+                                           {
+                                               reference
+                                           };
+                        this.Contents = contents.ToArray();
+                    }
+                }
+        }
+
+        public void RemoveContents(params DbRef[] references)
+        {
+            if (references != null)
+                foreach (var reference in references)
+                {
+                    Debug.Assert(!reference.Equals(DbRef.NOTHING), "!reference.Equals(DbRef.NOTHING)");
+                    Debug.Assert(!reference.Equals(DbRef.AMBIGUOUS), "!reference.Equals(DbRef.AMBIGUOUS)");
+                    Debug.Assert(!reference.Equals(DbRef.FAILED_MATCH), "!reference.Equals(DbRef.FAILED_MATCH)");
+
+                    if (this.Contents == null)
+                        return;
+                    else
+                    {
+                        var contents = new List<DbRef>(this.Contents);
+                        contents.Remove(reference);
+                        this.Contents = contents.ToArray();
+                    }
+                }
+        }
+
+        public async Task ReparentAsync(DbRef newParent, [NotNull] ICacheClient redis)
+        {
+            Debug.Assert(!newParent.Equals(DbRef.NOTHING), "!newParent.Equals(DbRef.NOTHING)");
+            Debug.Assert(!newParent.Equals(DbRef.AMBIGUOUS), "!newParent.Equals(DbRef.AMBIGUOUS)");
+            Debug.Assert(!newParent.Equals(DbRef.FAILED_MATCH), "!newParent.Equals(DbRef.FAILED_MATCH)");
+            
+            var oldParentObject = this.Parent.Equals(DbRef.NOTHING) ? null : await CacheManager.LookupOrRetrieveAsync(this.Parent, redis, async d => await GetAsync(redis, d));
+            var newParentObject = await CacheManager.LookupOrRetrieveAsync(newParent, redis, async d => await GetAsync(redis, d));
+
+            if (newParentObject != null)
+            {
+                if (oldParentObject != null)
+                {
+                    oldParentObject.DataObject.RemoveContents(this.DbRef);
+                    await oldParentObject.DataObject.SaveAsync(redis);
+                }
+
+                newParentObject.DataObject.AddContents(this.DbRef);
+                await newParentObject.DataObject.SaveAsync(redis);
+
+                this.Parent = newParent;
+                await this.SaveAsync(redis);
+            }
+        }
+
+        /// <summary>
+        /// Saves the object back to the persistent data store
+        /// </summary>
+        /// <param name="redis">The client proxy to access the underlying data store</param>
+        /// <returns>A task object used to await this method for completion</returns>
+        [NotNull]
+        public abstract Task SaveAsync([NotNull] ICacheClient redis);
     }
 }

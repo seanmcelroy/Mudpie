@@ -1,6 +1,7 @@
 ﻿namespace Mudpie.Console
 {
     using System;
+    using System.Collections.Generic;
     using System.Configuration;
     using System.Diagnostics;
     using System.Linq;
@@ -41,10 +42,12 @@
             // Load configuration
             var config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
             var mudpieConfigurationSection = (MudpieConfigurationSection)config.GetSection("mudpie");
+            Debug.Assert(mudpieConfigurationSection != null, "mudpieConfigurationSection != null");
             _Logger.InfoFormat("Loaded configuration from {0}", config.FilePath);
 
             var godPlayer = new Player
                                 {
+                                    Aliases = new[] { "Jehovah", "Yahweh", "Allah" },
                                     DbRef = 2,
                                     Description = "The Creator",
                                     InternalId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2).ToString("N"),
@@ -64,28 +67,50 @@
                         {
                             Console.WriteLine("Redis database is not seeded with any data.  Creating seed data...");
 
-                            await redis.Database.StringSetAsync("mudpie::dbref:counter", 1);
+                            await redis.Database.StringSetAsync("mudpie::dbref:counter", 4);
 
-                            var voidId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1).ToString("N");
+                            // VOID
                             var voidRoom = new Room
                                                {
                                                    DbRef = 1,
-                                                   InternalId = voidId,
+                                                   InternalId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1).ToString("N"),
                                                    Name = "The Void",
                                                    Description = "An infinite emptiness of nothing."
                                                };
+                            await voidRoom.SaveAsync(redis);
 
-                            await redis.SetAddAsync<string>("mudpie::rooms", voidRoom.DbRef);
-                            await redis.AddAsync($"mudpie::room:{voidRoom.DbRef}", voidRoom);
-
+                            // GOD
                             var godPassword = new SecureString();
                             foreach (var c in "god")
                                 godPassword.AppendChar(c);
                             godPlayer.SetPassword(godPassword);
-                            await redis.SetAddAsync<string>("mudpie::players", godPlayer.DbRef);
-                            await redis.AddAsync($"mudpie::player:{godPlayer.DbRef}", godPlayer);
+                            await godPlayer.SaveAsync(redis);
 
-                            await redis.HashSetAsync("mudpie::usernames", godPlayer.Username.ToLowerInvariant(), godPlayer.DbRef);
+                            // LOOK
+                            var lookProgramSource = await Data.Program.GetSourceCodeLinesAsync(mudpieConfigurationSection, "look.mcs");
+                            Debug.Assert(lookProgramSource != null, "lookProgramSource != null");
+                            var lookProgram = new Data.Program("look.msc", lookProgramSource)
+                                                  {
+                                                      DbRef = 3,
+                                                      Description = "A program used to observe your surroundings",
+                                                      Name = "look.msc",
+                                                      Interactive = false
+                                                  };
+                            await lookProgram.SaveAsync(redis);
+
+                            // LINK-LOOK-ROOM
+                            var linkLook = new Link
+                                               {
+                                                    DbRef = 4,
+                                                   Name = "look",
+                                                   Aliases = new[] { "l" },
+                                                   Location = voidRoom.DbRef,
+                                                   Target = 3
+                                               };
+                            await linkLook.ReparentAsync(voidRoom.DbRef, redis);
+                            await linkLook.SaveAsync(redis);
+
+
                         }
                         else
                         {
@@ -120,28 +145,9 @@
 
                 // Setup scripting engine
                 var scriptingEngine = new Engine(redis);
-                var scriptEngineTask = Task.Run(async () =>
-                    {
-                        Debug.Assert(mudpieConfigurationSection != null, "mudpieConfigurationSection != null");
-                        foreach (var dir in mudpieConfigurationSection.Directories)
-                        foreach (var file in System.IO.Directory.GetFiles(dir.Directory))
-                        {
-                            Debug.Assert(file != null, "file != null");
-                            using (var sr = new System.IO.StreamReader(file))
-                            {
-                                var contents = await sr.ReadToEndAsync();
-                                var interactive = contents.IndexOf("// MUDPIE::INTERACTIVE", StringComparison.InvariantCultureIgnoreCase) > -1;
-                                await scriptingEngine.SaveProgramAsync(new Data.Program(System.IO.Path.GetFileNameWithoutExtension(file), contents, dir.Unauthenticated)
-                                                                           {
-                                                                               Interactive = interactive
-                                                                           });
-                                sr.Close();
-                            }
-                        }
-                    });
-                scriptEngineTask.Wait();
 
                 // Listen for connections
+                Debug.Assert(mudpieConfigurationSection.Ports != null, "mudpieConfigurationSection.Ports != null");
                 var server = new Server(mudpieConfigurationSection.Ports.Select(p => p.Port).ToArray(), scriptingEngine)
                                  {
                                      ShowBytes = true,

@@ -59,6 +59,41 @@ namespace Mudpie.Console.Data
         [NotNull, Pure, ItemCanBeNull]
         public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef) => await redis.GetAsync<Player>($"mudpie::player:{playerRef}");
 
+        /// <inheritdoc />
+        public override bool Equals(object obj)
+        {
+            // If parameter is null return false.
+            if (obj == null)
+            {
+                return false;
+            }
+
+            // If parameter cannot be cast to Player return false.
+            var p = obj as Player;
+            if ((object)p == null)
+                return false;
+
+            // Return true if the fields match:
+            return this.InternalId == p.InternalId;
+        }
+
+        /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            return this.InternalId.GetHashCode();
+        }
+
+        /// <inheritdoc />
+        public override async Task SaveAsync(ICacheClient redis)
+        {
+            if (redis == null)
+                throw new ArgumentNullException(nameof(redis));
+
+            await redis.SetAddAsync<string>("mudpie::players", this.DbRef);
+            await redis.AddAsync($"mudpie::player:{this.DbRef}", this);
+            await redis.HashSetAsync("mudpie::usernames", this.Username.ToLowerInvariant(), this.DbRef);
+        }
+
         internal void SetPassword([NotNull] SecureString password)
         {
             var saltBytes = new byte[64];
@@ -99,35 +134,6 @@ namespace Mudpie.Console.Data
             {
                 Marshal.FreeBSTR(bstr);
             }
-        }
-
-        /// <summary>Determines whether the specified object is equal to the current object.</summary>
-        /// <returns>true if the specified object  is equal to the current object; otherwise, false.</returns>
-        /// <param name="obj">The object to compare with the current object. </param>
-        /// <filterpriority>2</filterpriority>
-        public override bool Equals(object obj)
-        {
-            // If parameter is null return false.
-            if (obj == null)
-            {
-                return false;
-            }
-
-            // If parameter cannot be cast to Player return false.
-            var p = obj as Player;
-            if ((object)p == null)
-                return false;
-
-            // Return true if the fields match:
-            return this.InternalId == p.InternalId;
-        }
-
-        /// <summary>Serves as the default hash function. </summary>
-        /// <returns>A hash code for the current object.</returns>
-        /// <filterpriority>2</filterpriority>
-        public override int GetHashCode()
-        {
-            return this.InternalId.GetHashCode();
         }
     }
 }

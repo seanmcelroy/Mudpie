@@ -12,7 +12,9 @@ namespace Mudpie.Console.Data
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
+    using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
@@ -21,7 +23,10 @@ namespace Mudpie.Console.Data
     using Microsoft.CodeAnalysis.CSharp.Scripting;
     using Microsoft.CodeAnalysis.Scripting;
 
+    using Mudpie.Console.Configuration;
     using Mudpie.Scripting.Common;
+
+    using StackExchange.Redis.Extensions.Core;
 
     /// <summary>
     /// A program is a series of lines of code that can be executed within the MUD process
@@ -32,7 +37,7 @@ namespace Mudpie.Console.Data
         /// The logging utility instance to use to log events from this class
         /// </summary>
         private static readonly ILog _Logger = LogManager.GetLogger(typeof(Program));
-        
+
         /// <summary>
         /// Once the script is compiled, the finished state is stored here for future executions
         /// </summary>
@@ -46,8 +51,11 @@ namespace Mudpie.Console.Data
         /// <param name="scriptSourceCode">The C# lines of script source code</param>
         /// <param name="unauthenticated">Whether or not the program may be run from an authenticated <see cref="Network.Connection"/></param>
         /// <exception cref="ArgumentNullException">Thrown of the <paramref name="scriptSourceCode"/> is specified as null</exception>
-        public Program([NotNull] string programName, [NotNull] string scriptSourceCode, bool unauthenticated = false) : base(programName)
+        public Program([NotNull] string programName, [NotNull] string scriptSourceCode, bool unauthenticated = false)
+            : base(programName)
         {
+            if (programName == null)
+                throw new ArgumentNullException(nameof(programName));
             if (scriptSourceCode == null)
                 throw new ArgumentNullException(nameof(scriptSourceCode));
 
@@ -62,7 +70,8 @@ namespace Mudpie.Console.Data
         /// <param name="scriptSourceCodeLines">The C# lines of script source code</param>
         /// <param name="unauthenticated">Whether or not the program may be run from an authenticated <see cref="Network.Connection"/></param>
         /// <exception cref="ArgumentNullException">Thrown of the <paramref name="scriptSourceCodeLines"/> is specified as null</exception>
-        public Program([NotNull] string programName, [NotNull] string[] scriptSourceCodeLines, bool unauthenticated = false) : base(programName)
+        public Program([NotNull] string programName, [NotNull] string[] scriptSourceCodeLines, bool unauthenticated = false)
+            : base(programName)
         {
             if (scriptSourceCodeLines == null)
                 throw new ArgumentNullException(nameof(scriptSourceCodeLines));
@@ -85,7 +94,8 @@ namespace Mudpie.Console.Data
         /// Initializes a new instance of the <see cref="Program"/> class.
         /// </summary>
         /// <param name="programName">The name of the program</param>
-        protected Program([NotNull] string programName) : base(programName)
+        protected Program([NotNull] string programName)
+            : base(programName)
         {
             this.ScriptSourceCodeLines = new List<string>(0);
         }
@@ -129,8 +139,7 @@ namespace Mudpie.Console.Data
                 var scriptingCommon = typeof(DbRef).Assembly;
                 scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore, scriptingCommon);
 
-                var roslynScript = CSharpScript
-                    .Create<T>(";", globalsType: typeof(Scripting.ContextGlobals));
+                var roslynScript = CSharpScript.Create<T>(";", globalsType: typeof(Scripting.ContextGlobals));
                 Debug.Assert(roslynScript != null, "The script object must not be null after constructing it from default banner lines");
 
                 foreach (var line in this.ScriptSourceCodeLines)
@@ -148,6 +157,45 @@ namespace Mudpie.Console.Data
             }
 
             return (Script<T>)this._compiledScript;
+        }
+
+        [NotNull, ItemCanBeNull, Pure]
+        public static async Task<string> GetSourceCodeLinesAsync([NotNull] MudpieConfigurationSection configSection, [NotNull] string programFileName)
+        {
+            if (configSection == null)
+                throw new ArgumentNullException(nameof(configSection));
+            if (string.IsNullOrWhiteSpace(programFileName))
+                throw new ArgumentNullException(nameof(programFileName));
+
+            Debug.Assert(configSection != null, "configSection != null");
+            Debug.Assert(configSection.Directories != null, "configSection.Directories != null");
+            foreach (var dir in configSection.Directories)
+                if (dir != null)
+                    foreach (var file in Directory.GetFiles(dir.Directory))
+                    {
+                        Debug.Assert(file != null, "file != null");
+                        if (string.Compare(Path.GetFileNameWithoutExtension(file), Path.GetFileNameWithoutExtension(programFileName), StringComparison.OrdinalIgnoreCase) == 0)
+                        {
+                            using (var sr = new StreamReader(file))
+                            {
+                                var contents = await sr.ReadToEndAsync();
+                                sr.Close();
+                                return contents;
+                            }
+                        }
+                    }
+
+            return null;
+        }
+
+        /// <inheritdoc />
+        public override async Task SaveAsync(ICacheClient redis)
+        {
+            if (redis == null)
+                throw new ArgumentNullException(nameof(redis));
+
+            await redis.SetAddAsync<string>("mudpie::programs", this.DbRef);
+            await redis.AddAsync($"mudpie::program:{this.DbRef}", this);
         }
     }
 }
