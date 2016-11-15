@@ -6,7 +6,6 @@
 //   A persistent, accepted connection from a client computer to the network server process
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Network
 {
     using System;
@@ -19,6 +18,7 @@ namespace Mudpie.Console.Network
     using System.Net.Sockets;
     using System.Security;
     using System.Text;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -29,7 +29,6 @@ namespace Mudpie.Console.Network
     using log4net;
 
     using Mudpie.Scripting.Common;
-    using System.Text.RegularExpressions;
 
     /// <summary>
     /// A persistent, accepted connection from a client computer to the network server process
@@ -138,21 +137,6 @@ namespace Mudpie.Console.Network
             this.LocalPort = localIpEndpoint.Port;
         }
 
-        /// <summary>
-        /// Gets a value indicating whether the byte transmitted counts are logged to the logging instance
-        /// </summary>
-        private bool ShowBytes { get; }
-
-        /// <summary>
-        /// Gets a value indicating whether the commands transmitted are logged to the logging instance
-        /// </summary>
-        private bool ShowCommands { get; }
-
-        /// <summary>
-        /// Gets a value indicating whether the actual bytes (data) transmitted are logged to the logging instance
-        /// </summary>
-        private bool ShowData { get; }
-
         #region Authentication
         [CanBeNull]
         public string Username { get; set; }
@@ -200,6 +184,21 @@ namespace Mudpie.Console.Network
         /// </summary>
         private ConnectionMode Mode { get; set; } = ConnectionMode.Normal;
 
+        /// <summary>
+        /// Gets a value indicating whether the byte transmitted counts are logged to the logging instance
+        /// </summary>
+        private bool ShowBytes { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the commands transmitted are logged to the logging instance
+        /// </summary>
+        private bool ShowCommands { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the actual bytes (data) transmitted are logged to the logging instance
+        /// </summary>
+        private bool ShowData { get; }
+
         #region IO and Connection Management
         public async void Process(CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -239,16 +238,16 @@ namespace Mudpie.Console.Network
                     if (this.ShowBytes && this.ShowData)
                         _Logger.TraceFormat(
                             "{0}:{1} >{2}> {3} bytes: {4}",
-                            this.RemoteAddress, 
-                            this.RemotePort, 
+                            this.RemoteAddress,
+                            this.RemotePort,
                             ">",
                             content.Length,
                             content.TrimEnd('\r', '\n'));
                     else if (this.ShowBytes)
                         _Logger.TraceFormat(
                             "{0}:{1} >{2}> {3} bytes",
-                            this.RemoteAddress, 
-                            this.RemotePort, 
+                            this.RemoteAddress,
+                            this.RemotePort,
                             ">",
                             content.Length);
                     else if (this.ShowData)
@@ -274,26 +273,26 @@ namespace Mudpie.Console.Network
                     }
                     else
                     {
-                        #region Parse words into parts of speech
+
                         var wordMatches = Regex.Matches(content, @"([^\s]*(""[^""]*"")[^\s]*)|([^\s""]+)");
                         if (wordMatches.Count < 1)
                         {
                             await this.SendAsync("What?\r\n");
                             return;
                         }
-                        
+
                         var words = wordMatches.Cast<Match>().Select(m => m.Groups[0].Value).ToArray();
                         var verb = words.ElementAtOrDefault(0);
                         for (var i = 1; i < words.Length; i++)
-                            words[i] = words[i].Replace(@"\u001", "").Replace("\"", "");
+                            words[i] = words[i].Replace(@"\u001", string.Empty).Replace("\"", string.Empty);
 
                         var prepositions = new[]
                         {
-                            "with", "using", "at","to", "in front of","in", "inside","into","on top of","on","onto","upon","out of","from inside","from","over","through","under","underneath","beneath","behind","beside","for","about","as","off","off of"
+                            "with", "using", "at", "to", "in front of", "in", "inside", "into", "on top of", "on", "onto", "upon", "out of", "from inside", "from", "over", "through", "under", "underneath", "beneath", "behind", "beside", "for", "about", "as", "off", "off of"
                         };
 
                         string prep = null;
-                        int prepFoundStart = -1;
+                        var prepFoundStart = -1;
                         foreach (var word in words.Skip(1))
                         {
                             foreach (var p in prepositions)
@@ -314,45 +313,22 @@ namespace Mudpie.Console.Network
                         string directObject = null;
                         if (prep != null)
                         {
-                            directObject = content.Substring(verb.Length, prepFoundStart - verb.Length).Replace(@"\u001", "").Replace("\"", "").Trim();
-                            indirectObject = content.Substring(prepFoundStart + prep.Length).Replace(@"\u001", "").Replace("\"", "").Trim();
+                            directObject = content.Substring(verb.Length, prepFoundStart - verb.Length).Replace(@"\u001", string.Empty).Replace("\"", string.Empty).Trim();
+                            indirectObject = content.Substring(prepFoundStart + prep.Length).Replace(@"\u001", string.Empty).Replace("\"", string.Empty).Trim();
                         }
                         else
-                            directObject = content.Substring(verb.Length).Replace(@"\u001", "").Replace("\"", "").Trim();
+                            directObject = content.Substring(verb.Length).Replace(@"\u001", string.Empty).Replace("\"", string.Empty).Trim();
 
-                        _Logger.Verbose($"{content.TrimEnd('\r','\n')} => VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}");
-                        #endregion
+                        _Logger.Verbose($"{content.TrimEnd('\r', '\n')} => VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}");
 
                         #region Matching
-                        var matcher = new Func<string, Task<DbRef>>(async s =>
-                       {
-                           // Did they provide a DbRef?
-                           DbRef reference;
-                           if (DbRef.TryParse(s, out reference))
-                           {
-                               // Only return the reference if the object exists.
-                               if (await ObjectBase.ExistsAsync(this._server.ScriptingEngine.Redis, reference))
-                                   return reference;
-                               else
-                                   return DbRef.NOTHING;
-                           }
-
-                           // Is it a special pronoun?
-                           if (string.Compare(s, "me", StringComparison.InvariantCultureIgnoreCase) == 0)
-                               return this.Identity?.DbRef ?? DbRef.NOTHING;
-                           if (string.Compare(s, "here", StringComparison.InvariantCultureIgnoreCase) == 0)
-                               return this.Identity?.Location ?? DbRef.NOTHING;
-
-                           return DbRef.NOTHING;
-                       });
-
-                        var directObjectReference = directObject == null ? DbRef.NOTHING : await matcher.Invoke(directObject);
-                        var indirectObjectReference = indirectObject == null ? DbRef.NOTHING : await matcher.Invoke(indirectObject);
+                        var verbReference = verb == null ? DbRef.NOTHING : await MatchUtility.MatchVerbAsync(this.Identity, this._server.ScriptingEngine.Redis, verb);
+                        _Logger.Verbose($"{verb} => REF: {verbReference}");
+                        var directObjectReference = directObject == null ? DbRef.NOTHING : await MatchUtility.MatchObjectAsync(this.Identity, this._server.ScriptingEngine.Redis, directObject);
                         _Logger.Verbose($"{directObject} => REF: {directObjectReference}");
+                        var indirectObjectReference = indirectObject == null ? DbRef.NOTHING : await MatchUtility.MatchObjectAsync(this.Identity, this._server.ScriptingEngine.Redis, indirectObject);
                         _Logger.Verbose($"{indirectObject} => REF: {indirectObjectReference}");
                         #endregion
-
-
 
                         var command = content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant();
                         if (_BuiltInCommandDirectory.ContainsKey(command))
@@ -412,12 +388,7 @@ namespace Mudpie.Console.Network
                                                 await this.SendAsync($"Running... {context.ProgramName}.\r\n");
                                                 break;
                                             case Scripting.ContextState.Completed:
-                                                // Write feedback to output
-                                                if (context.Output.Count == 0)
-                                                    await this.SendAsync($"{context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
-                                                else
-                                                    foreach (var line in context.Output)
-                                                        await this.SendAsync($"{line}\r\n");
+                                                _Logger.Verbose($"{this.Identity.Name}> Run of {context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
                                                 break;
                                         }
                                 },
@@ -483,7 +454,7 @@ namespace Mudpie.Console.Network
                 if (this.ShowBytes && this.ShowData)
                     _Logger.TraceFormat(
                         "{0}:{1} <{2}{3} {4} bytes: {5}",
-                        this.RemoteAddress, 
+                        this.RemoteAddress,
                         this.RemotePort,
                         "<",
                         "<",
@@ -492,15 +463,15 @@ namespace Mudpie.Console.Network
                 else if (this.ShowBytes)
                     _Logger.TraceFormat(
                         "{0}:{1} <{2}{3} {4} bytes",
-                        this.RemoteAddress, 
-                        this.RemotePort, 
+                        this.RemoteAddress,
+                        this.RemotePort,
                         "<",
                         "<",
                         byteData.Length);
                 else if (this.ShowData)
                     _Logger.TraceFormat(
                         "{0}:{1} <{2}{3} {4}",
-                        this.RemoteAddress, 
+                        this.RemoteAddress,
                         this.RemotePort,
                         "<",
                         "<",
