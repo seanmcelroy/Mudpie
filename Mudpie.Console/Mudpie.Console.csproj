@@ -124,6 +124,7 @@
       <HintPath>..\packages\System.Reflection.Metadata.1.3.0\lib\portable-net45+win8\System.Reflection.Metadata.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="System.Runtime.Caching" />
     <Reference Include="System.Security.Cryptography.Algorithms, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Security.Cryptography.Algorithms.4.2.0\lib\net461\System.Security.Cryptography.Algorithms.dll</HintPath>
       <Private>True</Private>
@@ -174,6 +175,8 @@
     <Compile Include="Configuration\ProgramConfigurationElementCollection.cs" />
     <Compile Include="Configuration\PortConfigurationElementCollection.cs" />
     <Compile Include="Configuration\MudpieConfigurationSection.cs" />
+    <Compile Include="Data\CacheManager.cs" />
+    <Compile Include="Data\ComposedObject.cs" />
     <Compile Include="Data\ObjectBase.cs" />
     <Compile Include="Data\Player.cs" />
     <Compile Include="Data\Room.cs" />
@@ -200,6 +203,7 @@
     <None Include="packages.config" />
     <None Include="Scripting\Builtin\test2.prog" />
     <None Include="Scripting\Builtin\Unauthenticated\help.mtxt" />
+    <None Include="Scripting\Builtin\Unauthenticated\look.mcs" />
     <None Include="Scripting\Builtin\Unauthenticated\marco.mcs" />
   </ItemGroup>
   <ItemGroup>

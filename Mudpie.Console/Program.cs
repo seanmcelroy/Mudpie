@@ -90,11 +90,14 @@
                         else
                         {
                             // Ensure we can read Void and God
-                            var voidRoom = redis.Get<Room>($"mudpie::room:{(DbRef)1}");
+                            var voidRoom = await Room.GetAsync(redis, 1);
                             Debug.Assert(voidRoom != null, "voidRoom != null");
 
-                            godPlayer = Player.Get(redis, 2);
+                            godPlayer = await Player.GetAsync(redis, 2);
                             Debug.Assert(godPlayer != null, "godPlayer != null");
+
+                            var godComposed = await CacheManager.LookupOrRetrieveAsync(2, redis, async d => await Player.GetAsync(redis, d));
+                            Debug.Assert(godComposed != null, "godComposed != null");
                         }
 
                         /*else

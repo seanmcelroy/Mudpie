@@ -13,6 +13,7 @@ namespace Mudpie.Console.Scripting
 
     using JetBrains.Annotations;
 
+    using Mudpie.Console.Data;
     using Mudpie.Scripting.Common;
 
     /// <summary>
@@ -29,6 +30,12 @@ namespace Mudpie.Console.Scripting
             this.PlayerInput = new PlayerInputStreamReader(this.PlayerInputStreamInternal);
             this.PlayerInputWriterInternal = new PlayerInputStreamWriter(this.PlayerInputWriterStreamInternal, this.PlayerInput);
         }
+
+        /// <summary>
+        /// Gets the location of the triggering object
+        /// </summary>
+        [CanBeNull]
+        public ObjectBase Location { get; internal set; }
 
         /// <summary>
         /// Gets the unique identifier of the <see cref="Data.ObjectBase"/> that triggered the program execution

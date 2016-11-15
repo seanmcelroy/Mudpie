@@ -10,14 +10,15 @@
 namespace Mudpie.Console.Data
 {
     using System;
+    using System.Diagnostics;
     using System.Linq;
+    using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
     using Mudpie.Scripting.Common;
 
     using StackExchange.Redis.Extensions.Core;
-    using System.Threading.Tasks;
 
     /// <summary>
     /// The base definition of any object in the MUD
@@ -83,6 +84,12 @@ namespace Mudpie.Console.Data
         public DbRef Location { get; set; } = DbRef.NOTHING;
 
         /// <summary>
+        /// Gets or sets the inverse of 'location', the contents of this object
+        /// </summary>
+        [CanBeNull]
+        public DbRef[] Contents { get; set; }
+
+        /// <summary>
         /// Gets or sets the parent of this object, from which it inherits properties and verbs
         /// </summary>
         public DbRef Parent { get; set; } = DbRef.NOTHING;
@@ -101,24 +108,56 @@ namespace Mudpie.Console.Data
             return newObject;
         }
 
+        [NotNull, Pure]
         public static async Task<bool> ExistsAsync([NotNull] ICacheClient redis, DbRef reference)
         {
             if (redis == null)
                 throw new ArgumentNullException(nameof(redis));
 
-            var referenceString = "\""+reference.ToString()+"\"";
+            var referenceString = "\"" + reference + "\"";
 
             var tasks = new[]
-            {
-                redis.Database.SetContainsAsync($"mudpie::actions", referenceString),
-                redis.Database.SetContainsAsync($"mudpie::players",referenceString),
-                redis.Database.SetContainsAsync($"mudpie::programs", referenceString),
-                redis.Database.SetContainsAsync($"mudpie::rooms",referenceString)
-            };
+                            {
+                                redis.Database.SetContainsAsync("mudpie::actions", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::players", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::programs", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::rooms", referenceString)
+                            };
 
             await Task.WhenAll(tasks);
 
             return tasks.Any(t => t.Result);
+        }
+
+        [NotNull, Pure, ItemCanBeNull]
+        public static async Task<ObjectBase> GetAsync([NotNull] ICacheClient redis, DbRef reference)
+        {
+            var referenceString = "\"" + reference + "\"";
+
+            var tasks = new[]
+                            {
+                                redis.Database.SetContainsAsync("mudpie::actions", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::players", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::programs", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::rooms", referenceString)
+                            };
+
+            await Task.WhenAll(tasks);
+
+            Debug.Assert(tasks!= null);
+            Debug.Assert(tasks[0] != null);
+            Debug.Assert(tasks[1] != null);
+            Debug.Assert(tasks[2] != null);
+            Debug.Assert(tasks[3] != null);
+
+            // TODO
+
+            if (tasks[1].Result)
+                return await Player.GetAsync(redis, reference);
+            if (tasks[3].Result)
+                return await Room.GetAsync(redis, reference);
+
+            throw new NotImplementedException();
         }
     }
 }

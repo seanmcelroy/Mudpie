@@ -15,6 +15,7 @@ namespace Mudpie.Console.Data
     using System.Security;
     using System.Security.Cryptography;
     using System.Text;
+    using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
@@ -55,11 +56,8 @@ namespace Mudpie.Console.Data
             return newPlayer;
         }
 
-        [CanBeNull, Pure]
-        public static Player Get([NotNull] ICacheClient redis, DbRef playerRef)
-        {
-            return redis.Get<Player>($"mudpie::player:{playerRef}");
-        }
+        [NotNull, Pure, ItemCanBeNull]
+        public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef) => await redis.GetAsync<Player>($"mudpie::player:{playerRef}");
 
         internal void SetPassword([NotNull] SecureString password)
         {

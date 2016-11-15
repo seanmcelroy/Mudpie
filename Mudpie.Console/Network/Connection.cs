@@ -331,7 +331,7 @@ namespace Mudpie.Console.Network
                            if (DbRef.TryParse(s, out reference))
                            {
                                // Only return the reference if the object exists.
-                               if (await ObjectBase.ExistsAsync(_server.ScriptingEngine.Redis, reference))
+                               if (await ObjectBase.ExistsAsync(this._server.ScriptingEngine.Redis, reference))
                                    return reference;
                                else
                                    return DbRef.NOTHING;
@@ -339,9 +339,9 @@ namespace Mudpie.Console.Network
 
                            // Is it a special pronoun?
                            if (string.Compare(s, "me", StringComparison.InvariantCultureIgnoreCase) == 0)
-                               return this.Identity == null ? DbRef.NOTHING : this.Identity.DbRef;
+                               return this.Identity?.DbRef ?? DbRef.NOTHING;
                            if (string.Compare(s, "here", StringComparison.InvariantCultureIgnoreCase) == 0)
-                               return this.Identity == null ? DbRef.NOTHING : this.Identity.Location;
+                               return this.Identity?.Location ?? DbRef.NOTHING;
 
                            return DbRef.NOTHING;
                        });
@@ -387,9 +387,9 @@ namespace Mudpie.Console.Network
                                 {
                                     var context = await this._server.ScriptingEngine.RunProgramAsync<int>(command, this.Identity, this, cancellationToken);
                                     if (context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
-                                        await this.SendAsync("Huh?\r\n");
+                                        await this.SendAsync("Huh?\r\n\r\n");
                                     else if (context.ErrorNumber == Scripting.ContextErrorNumber.AuthenticationRequired)
-                                        await this.SendAsync("You must be logged in to use that command.\r\n");
+                                        await this.SendAsync("You must be logged in to use that command.\r\n\r\n");
                                     else
                                         switch (context.State)
                                         {
@@ -586,7 +586,7 @@ namespace Mudpie.Console.Network
                 return new CommandProcessingResult(true);
             }
 
-            var player = Player.Get(this._server.ScriptingEngine.Redis, playerRef);
+            var player = await Player.GetAsync(this._server.ScriptingEngine.Redis, playerRef);
             if (player == null)
             {
                 await this.SendAsync("Either that player does not exist, or has a different password. #004\r\n");
