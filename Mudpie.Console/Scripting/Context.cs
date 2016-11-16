@@ -17,7 +17,7 @@ namespace Mudpie.Console.Scripting
     using JetBrains.Annotations;
 
     /// <summary>
-    /// An execution context instance of a <see cref="Script"/> running in an <see cref="Engine"/>
+    /// An execution context instance of a <see cref="Microsoft.CodeAnalysis.Scripting.Script"/> running in an <see cref="Engine"/>
     /// </summary>
     /// <typeparam name="T">The return type of the script</typeparam>
     internal class Context<T>

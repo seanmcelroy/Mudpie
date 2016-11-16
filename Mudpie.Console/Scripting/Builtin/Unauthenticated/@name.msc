@@ -1,4 +1,13 @@
-﻿if (DirectObject == null) { return -1; }
+﻿void youBetcha() {
+	PlayerOutput.WriteLine("You betcha!");
+}
+
+if (DirectObject == null) {
+	return -1; 
+}
 PlayerOutput.WriteLine($"Renaming {DirectObject} to '{IndirectObjectString}'");
 DatabaseLibrary.Rename(DirectObject.DbRef, IndirectObjectString);
+
+youBetcha();
+
 return 0;

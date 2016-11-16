@@ -10,9 +10,7 @@
 namespace Mudpie.Server.Data
 {
     using System;
-    using System.Collections.Generic;
     using System.Diagnostics;
-    using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
 
@@ -49,38 +47,18 @@ namespace Mudpie.Server.Data
         /// </summary>
         /// <param name="programName">The name of the program</param>
         /// <param name="owner">The reference of the owner of the object</param>
-        /// <param name="scriptSourceCode">The C# lines of script source code</param>
-        /// <param name="unauthenticated">Whether or not the program may be run from an authenticated <see cref="Network.Connection"/></param>
-        /// <exception cref="ArgumentNullException">Thrown of the <paramref name="scriptSourceCode"/> is specified as null</exception>
-        public Program([NotNull] string programName, DbRef owner, [NotNull] string scriptSourceCode, bool unauthenticated = false)
+        /// <param name="scriptSource">The C# lines of script source code</param>
+        /// <param name="unauthenticated">Whether or not the program may be run from an authenticated connection</param>
+        /// <exception cref="ArgumentNullException">Thrown of the <paramref name="scriptSource"/> is specified as null</exception>
+        public Program([NotNull] string programName, DbRef owner, [NotNull] string scriptSource, bool unauthenticated = false)
             : base(programName, owner)
         {
             if (programName == null)
                 throw new ArgumentNullException(nameof(programName));
-            if (scriptSourceCode == null)
-                throw new ArgumentNullException(nameof(scriptSourceCode));
+            if (scriptSource == null)
+                throw new ArgumentNullException(nameof(scriptSource));
 
-            this.ScriptSourceCodeLines = scriptSourceCode.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries).ToList();
-            this.UnauthenticatedExecution = unauthenticated;
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Program"/> class.
-        /// </summary>
-        /// <param name="programName">The name of the program</param>
-        /// <param name="owner">The reference of the owner of the object</param>
-        /// <param name="scriptSourceCodeLines">The C# lines of script source code</param>
-        /// <param name="unauthenticated">Whether or not the program may be run from an authenticated <see cref="Network.Connection"/></param>
-        /// <exception cref="ArgumentNullException">Thrown of the <paramref name="scriptSourceCodeLines"/> is specified as null</exception>
-        public Program([NotNull] string programName, DbRef owner, [NotNull] string[] scriptSourceCodeLines, bool unauthenticated = false)
-            : base(programName, owner)
-        {
-            if (scriptSourceCodeLines == null)
-                throw new ArgumentNullException(nameof(scriptSourceCodeLines));
-            if (scriptSourceCodeLines.Length == 0)
-                throw new ArgumentException("Empty array", nameof(scriptSourceCodeLines));
-
-            this.ScriptSourceCodeLines = scriptSourceCodeLines.ToList();
+            this.ScriptSource = scriptSource;
             this.UnauthenticatedExecution = unauthenticated;
         }
 
@@ -90,7 +68,6 @@ namespace Mudpie.Server.Data
         [Obsolete("Only made public for a generic type parameter requirement", false)]
         public Program()
         {
-            this.ScriptSourceCodeLines = new List<string>(0);
         }
 
         /// <summary>
@@ -101,7 +78,6 @@ namespace Mudpie.Server.Data
         protected Program([NotNull] string programName, DbRef owner)
             : base(programName, owner)
         {
-            this.ScriptSourceCodeLines = new List<string>(0);
         }
 
         /// <summary>
@@ -114,7 +90,7 @@ namespace Mudpie.Server.Data
         /// Gets or sets the lines of the C# source code for this program
         /// </summary>
         [NotNull]
-        public List<string> ScriptSourceCodeLines { get; set; }
+        public string ScriptSource { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether a user who has not yet authenticated can run the program
@@ -153,16 +129,9 @@ namespace Mudpie.Server.Data
                 var scriptingCommon = typeof(DbRef).Assembly;
                 scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore, scriptingCommon);
 
-                var roslynScript = CSharpScript.Create<T>(";", globalsType: typeof(ContextGlobals));
+                var roslynScript = CSharpScript.Create<T>(this.ScriptSource, globalsType: typeof(ContextGlobals));
                 Debug.Assert(roslynScript != null, "The script object must not be null after constructing it from default banner lines");
-
-                foreach (var line in this.ScriptSourceCodeLines)
-                {
-                    Debug.Assert(roslynScript != null, "The script object must not be null after appending lines of source script");
-                    roslynScript = roslynScript.ContinueWith<T>(line);
-                }
-
-                Debug.Assert(roslynScript != null, "The script object must not be null after appending lines of source script");
+                
                 roslynScript.WithOptions(scriptOptions).Compile();
                 this.compiledScript = roslynScript;
 
