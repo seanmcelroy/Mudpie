@@ -7,7 +7,7 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace Mudpie.Console.Data
+namespace Mudpie.Server.Data
 {
     using System;
     using System.Collections.Generic;
@@ -23,8 +23,7 @@ namespace Mudpie.Console.Data
     using Microsoft.CodeAnalysis.CSharp.Scripting;
     using Microsoft.CodeAnalysis.Scripting;
 
-    using Mudpie.Console.Configuration;
-    using Mudpie.Scripting.Common;
+    using Scripting.Common;
 
     using StackExchange.Redis.Extensions.Core;
 
@@ -150,7 +149,7 @@ namespace Mudpie.Console.Data
                 var scriptingCommon = typeof(DbRef).Assembly;
                 scriptOptions = scriptOptions.AddReferences(mscorlib, systemCore, scriptingCommon);
 
-                var roslynScript = CSharpScript.Create<T>(";", globalsType: typeof(Scripting.ContextGlobals));
+                var roslynScript = CSharpScript.Create<T>(";", globalsType: typeof(ContextGlobals));
                 Debug.Assert(roslynScript != null, "The script object must not be null after constructing it from default banner lines");
 
                 foreach (var line in this.ScriptSourceCodeLines)
@@ -168,49 +167,6 @@ namespace Mudpie.Console.Data
             }
 
             return (Script<T>)this.compiledScript;
-        }
-
-        [NotNull, ItemCanBeNull, Pure]
-        public static async Task<string> GetSourceCodeLinesAsync([NotNull] MudpieConfigurationSection configSection, [NotNull] string programFileName)
-        {
-            if (configSection == null)
-            {
-                throw new ArgumentNullException(nameof(configSection));
-            }
-
-            if (string.IsNullOrWhiteSpace(programFileName))
-            {
-                throw new ArgumentNullException(nameof(programFileName));
-            }
-
-            Debug.Assert(configSection != null, "configSection != null");
-            Debug.Assert(configSection.Directories != null, "configSection.Directories != null");
-            foreach (var dir in configSection.Directories)
-            {
-                if (dir != null)
-                {
-                    foreach (var file in Directory.GetFiles(dir.Directory))
-                    {
-                        Debug.Assert(file != null, "file != null");
-                        if (string.Compare(
-                                Path.GetFileNameWithoutExtension(file),
-                                Path.GetFileNameWithoutExtension(programFileName),
-                                StringComparison.OrdinalIgnoreCase) != 0)
-                        {
-                            continue;
-                        }
-
-                        using (var sr = new StreamReader(file))
-                        {
-                            var contents = await sr.ReadToEndAsync();
-                            sr.Close();
-                            return contents;
-                        }
-                    }
-                }
-            }
-
-            return null;
         }
 
         /// <inheritdoc />

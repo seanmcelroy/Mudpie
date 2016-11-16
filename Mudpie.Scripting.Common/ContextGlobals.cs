@@ -7,12 +7,10 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace Mudpie.Console.Scripting
+namespace Mudpie.Scripting.Common
 {
     using System;
     using System.IO;
-
-    using Data;
 
     using JetBrains.Annotations;
 
@@ -36,7 +34,7 @@ namespace Mudpie.Console.Scripting
         /// <param name="playerOutput">
         /// A text writer that can be used to send information back to the triggering object.
         /// </param>
-        internal ContextGlobals([NotNull] ObjectBase thisObject, [CanBeNull] ObjectBase caller, [NotNull] TextWriter playerOutput)
+        public ContextGlobals([NotNull] IObjectBase thisObject, [CanBeNull] IObjectBase caller, [NotNull] TextWriter playerOutput)
         {
             if (thisObject == null)
             {
@@ -61,22 +59,22 @@ namespace Mudpie.Console.Scripting
         }
 
         /// <summary>
-        /// Gets the player who typed the command
+        /// Gets or sets the player who typed the command
         /// </summary>
         [CanBeNull]
-        public ObjectBase Player { get; internal set; }
+        public IObjectBase Player { get; set; }
 
         /// <summary>
-        /// Gets the location of the triggering object
+        /// Gets or sets the location of the triggering object
         /// </summary>
         [CanBeNull]
-        public ObjectBase PlayerLocation { get; internal set; }
+        public IObjectBase PlayerLocation { get; set; }
 
         /// <summary>
-        /// Gets the object on which the verb for the command was found
+        /// Gets or sets the object on which the verb for the command was found
         /// </summary>
         [NotNull]
-        public ObjectBase This { get; private set; }
+        public IObjectBase This { get; set; }
 
         /// <summary>
         /// Gets the caller, the object on which the verb that called the currently-running
@@ -84,55 +82,55 @@ namespace Mudpie.Console.Scripting
         /// same value as <see cref="Player"/>.
         /// </summary>
         [CanBeNull]
-        public ObjectBase Caller { get; private set; }
+        public IObjectBase Caller { get; private set; }
 
         /// <summary>
-        /// Gets the verb; a string, the name by which the currently-running verb was identified.
+        /// Gets or sets the verb; a string, the name by which the currently-running verb was identified.
         /// </summary>
         [CanBeNull]
-        public string Verb { get; internal set; }
+        public string Verb { get; set; }
 
         /// <summary>
-        /// Gets a string, everything after the first word of the command
+        /// Gets or sets a string, everything after the first word of the command
         /// </summary>
         [CanBeNull]
-        public string ArgString { get; internal set; }
+        public string ArgString { get; set; }
 
         /// <summary>
-        /// Gets a list of strings, the words in <see cref="ArgString"/>
+        /// Gets or sets a list of strings, the words in <see cref="ArgString"/>
         /// </summary>
         [CanBeNull]
-        public string[] Args { get; internal set; }
+        public string[] Args { get; set; }
 
         /// <summary>
-        /// Gets a string, the direct object string found during parsing
+        /// Gets or sets a string, the direct object string found during parsing
         /// </summary>
         [CanBeNull]
-        public string DirectObjectString { get; internal set; }
+        public string DirectObjectString { get; set; }
 
         /// <summary>
-        /// Gets an object, the direct object value found during matching
+        /// Gets or sets an object, the direct object value found during matching
         /// </summary>
         [CanBeNull]
-        public ObjectBase DirectObject { get; internal set; }
+        public IObjectBase DirectObject { get; set; }
 
         /// <summary>
-        /// Gets a string, the prepositional phrase string found during parsing
+        /// Gets or sets a string, the prepositional phrase string found during parsing
         /// </summary>
         [CanBeNull]
-        public string PrepositionString { get; internal set; }
+        public string PrepositionString { get; set; }
 
         /// <summary>
-        /// Gets a string, the indirect object string found during parsing
+        /// Gets or sets a string, the indirect object string found during parsing
         /// </summary>
         [CanBeNull]
-        public string IndirectObjectString { get; internal set; }
+        public string IndirectObjectString { get; set; }
 
         /// <summary>
-        /// Gets an object, the indirect object value found during matching
+        /// Gets or sets an object, the indirect object value found during matching
         /// </summary>
         [CanBeNull]
-        public ObjectBase IndirectObject { get; internal set; }
+        public IObjectBase IndirectObject { get; set; }
         
         /// <summary>
         /// Gets a text writer that can be used to send information back to the triggering object.
@@ -141,7 +139,7 @@ namespace Mudpie.Console.Scripting
         public TextWriter PlayerOutput { get; private set; }
 
         /// <summary>
-        /// Gets a <see cref="StreamWriter"/> that is used by the internal <see cref="Network.Connection"/> to store input received by a player
+        /// Gets a <see cref="StreamWriter"/> that is used by the internal connection to store input received by a player
         /// </summary>
         [NotNull]
         public PlayerInputStreamWriter PlayerInputWriterInternal { get; private set; }

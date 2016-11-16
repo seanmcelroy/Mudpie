@@ -14,11 +14,10 @@ namespace Mudpie.Console
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
 
-    using Data;
-
     using JetBrains.Annotations;
 
     using Mudpie.Scripting.Common;
+    using Mudpie.Server.Data;
 
     using StackExchange.Redis.Extensions.Core;
 

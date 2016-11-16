@@ -7,7 +7,7 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace Mudpie.Console.Data
+namespace Mudpie.Server.Data
 {
     using System;
     using System.Collections.Generic;
@@ -27,7 +27,7 @@ namespace Mudpie.Console.Data
     /// The base definition of any object in the MUD
     /// </summary>
     [PublicAPI]
-    public abstract class ObjectBase
+    public abstract class ObjectBase : IObjectBase
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectBase"/> class.

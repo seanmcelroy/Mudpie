@@ -7,7 +7,7 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace Mudpie.Console.Data
+namespace Mudpie.Server.Data
 {
     using System;
     using System.Diagnostics;
@@ -112,8 +112,13 @@ namespace Mudpie.Console.Data
                     CacheManager.UpdateAsync(this.DbRef, redis, this));
         }
 
-        internal void SetPassword([NotNull] SecureString password)
+        public void SetPassword([NotNull] SecureString password)
         {
+            if (password == null)
+            {
+                throw new ArgumentNullException(nameof(password));
+            }
+
             var saltBytes = new byte[64];
             var rng = RandomNumberGenerator.Create();
             Debug.Assert(rng != null, "rng != null");
@@ -140,7 +145,7 @@ namespace Mudpie.Console.Data
         /// <returns>
         /// True if the password attempt provided matches the password hash for the player; otherwise, false.
         /// </returns>
-        internal bool VerifyPassword([NotNull] SecureString attempt)
+        public bool VerifyPassword([NotNull] SecureString attempt)
         {
             var bstr = Marshal.SecureStringToBSTR(attempt);
             try

@@ -8,7 +8,7 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace Mudpie.Console.Data
+namespace Mudpie.Server.Data
 {
     using System;
     using System.Collections.Generic;

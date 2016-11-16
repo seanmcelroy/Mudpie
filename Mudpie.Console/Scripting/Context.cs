@@ -16,8 +16,6 @@ namespace Mudpie.Console.Scripting
 
     using JetBrains.Annotations;
 
-    using Microsoft.CodeAnalysis.Scripting;
-
     /// <summary>
     /// An execution context instance of a <see cref="Script"/> running in an <see cref="Engine"/>
     /// </summary>
@@ -28,13 +26,13 @@ namespace Mudpie.Console.Scripting
         /// Gets or sets the script to execute
         /// </summary>
         [CanBeNull]
-        private readonly Data.Program program;
+        private readonly Server.Data.Program program;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Context{T}"/> class.
         /// </summary>
         /// <param name="program">The script to execute</param>
-        public Context([NotNull] Data.Program program)
+        public Context([NotNull] Server.Data.Program program)
         {
             if (program == null) throw new ArgumentNullException(nameof(program));
 
@@ -49,7 +47,7 @@ namespace Mudpie.Console.Scripting
         /// <param name="errorNumber">The general category of error that occurred</param>
         /// <param name="errorMessage">The specific error message that was recorded</param>
         /// <exception cref="ArgumentNullException">Thrown when a null error message is supplied to this constructor</exception>
-        private Context([CanBeNull] Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
+        private Context([CanBeNull] Server.Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
         {
             if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
 
@@ -100,7 +98,7 @@ namespace Mudpie.Console.Scripting
         /// </returns>
         [NotNull, Pure]
         public static Context<T> Error(
-            [CanBeNull] Data.Program program,
+            [CanBeNull] Server.Data.Program program,
             ContextErrorNumber errorNumber,
             [NotNull] string errorMessage)
         {

@@ -14,14 +14,15 @@ namespace Mudpie.Console.Scripting
     using System.Threading;
     using System.Threading.Tasks;
 
-    using Data;
-
     using JetBrains.Annotations;
 
     using Mudpie.Scripting.Common;
+    using Mudpie.Server.Data;
 
     using StackExchange.Redis.Extensions.Core;
-    
+
+    using Program = Mudpie.Console.Program;
+
     /// <summary>
     /// The scripting engine is the master factory of execution contexts for asynchronously running programs in the MUD
     /// </summary>
@@ -68,7 +69,7 @@ namespace Mudpie.Console.Scripting
                 return Context<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No program was supplied");
             }
 
-            var program = await Program.GetAsync(this.redis, programRef);
+            var program = await Server.Data.Program.GetAsync(this.redis, programRef);
             if (program == null)
             {
                 return Context<T>.Error(
@@ -194,7 +195,7 @@ namespace Mudpie.Console.Scripting
         }
 
         [NotNull]
-        public async Task SaveProgramAsync([NotNull] Program program)
+        public async Task SaveProgramAsync([NotNull] Server.Data.Program program)
         {
             var normalizedProgramName = program.Name.ToLowerInvariant();
 

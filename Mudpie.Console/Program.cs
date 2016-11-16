@@ -9,14 +9,14 @@
 
     using Configuration;
 
-    using Data;
-
     using log4net;
     using log4net.Config;
 
     using Network;
 
     using Scripting;
+
+    using Server.Data;
 
     using StackExchange.Redis.Extensions.Core;
     using StackExchange.Redis.Extensions.Newtonsoft;
@@ -84,9 +84,9 @@
                             await godPlayer.SaveAsync(redis);
 
                             // LOOK
-                            var lookProgramSource = await Data.Program.GetSourceCodeLinesAsync(mudpieConfigurationSection, "look.mcs");
+                            var lookProgramSource = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, "look.mcs");
                             Debug.Assert(lookProgramSource != null, "lookProgramSource != null");
-                            var lookProgram = new Data.Program("look.msc", lookProgramSource)
+                            var lookProgram = new Mudpie.Server.Data.Program("look.msc", lookProgramSource)
                                                   {
                                                       DbRef = 3,
                                                       Description = "A program used to observe your surroundings",

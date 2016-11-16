@@ -8,7 +8,7 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace Mudpie.Console.Scripting
+namespace Mudpie.Scripting.Common
 {
     using System;
     using System.IO;

@@ -22,13 +22,14 @@ namespace Mudpie.Console.Network
     using System.Threading;
     using System.Threading.Tasks;
 
-    using Data;
-
     using JetBrains.Annotations;
 
     using log4net;
 
     using Mudpie.Scripting.Common;
+    using Mudpie.Server.Data;
+
+    using Program = Mudpie.Console.Program;
 
     /// <summary>
     /// A persistent, accepted connection from a client computer to the network server process
@@ -500,7 +501,7 @@ namespace Mudpie.Console.Network
                     return false;
                 }
 
-                if (target is Program)
+                if (target is Mudpie.Server.Data.Program)
                 {
                     // Spawn the program as an asychronous task (no await) so input can still be processed on this connection
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed

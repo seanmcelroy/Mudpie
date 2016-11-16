@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mudpie.Console", "Mudpie.Co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mudpie.Scripting.Common", "Mudpie.Scripting.Common\Mudpie.Scripting.Common.csproj", "{2A371B12-D2AB-4E16-AD91-C66160F6DBFB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mudpie.Server.Data", "Mudpie.Server.Data\Mudpie.Server.Data.csproj", "{C359E2BF-326F-42C1-B3C1-5DEEA59C5AD0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{2A371B12-D2AB-4E16-AD91-C66160F6DBFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2A371B12-D2AB-4E16-AD91-C66160F6DBFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2A371B12-D2AB-4E16-AD91-C66160F6DBFB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C359E2BF-326F-42C1-B3C1-5DEEA59C5AD0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C359E2BF-326F-42C1-B3C1-5DEEA59C5AD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C359E2BF-326F-42C1-B3C1-5DEEA59C5AD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C359E2BF-326F-42C1-B3C1-5DEEA59C5AD0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

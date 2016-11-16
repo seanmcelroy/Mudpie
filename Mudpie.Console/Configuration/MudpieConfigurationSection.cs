@@ -17,7 +17,7 @@ namespace Mudpie.Console.Configuration
     /// </summary>
     [PublicAPI]
     // ReSharper disable once InconsistentNaming
-    public class MudpieConfigurationSection : ConfigurationSection
+    internal class MudpieConfigurationSection : ConfigurationSection
     {
         /// <summary>
         /// Gets the configuration element relating to how networking ports are made available to connect to this server instance
