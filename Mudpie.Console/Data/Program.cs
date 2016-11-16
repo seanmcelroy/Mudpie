@@ -36,6 +36,7 @@ namespace Mudpie.Console.Data
         /// <summary>
         /// The logging utility instance to use to log events from this class
         /// </summary>
+        [NotNull]
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Program));
 
         /// <summary>
@@ -133,6 +134,7 @@ namespace Mudpie.Console.Data
         /// <returns>
         /// The <see cref="Script"/> object that can be executed
         /// </returns>
+        [NotNull]
         public Script<T> Compile<T>()
         {
             if (this.compiledScript == null)
@@ -172,27 +174,41 @@ namespace Mudpie.Console.Data
         public static async Task<string> GetSourceCodeLinesAsync([NotNull] MudpieConfigurationSection configSection, [NotNull] string programFileName)
         {
             if (configSection == null)
+            {
                 throw new ArgumentNullException(nameof(configSection));
+            }
+
             if (string.IsNullOrWhiteSpace(programFileName))
+            {
                 throw new ArgumentNullException(nameof(programFileName));
+            }
 
             Debug.Assert(configSection != null, "configSection != null");
             Debug.Assert(configSection.Directories != null, "configSection.Directories != null");
             foreach (var dir in configSection.Directories)
+            {
                 if (dir != null)
+                {
                     foreach (var file in Directory.GetFiles(dir.Directory))
                     {
                         Debug.Assert(file != null, "file != null");
-                        if (string.Compare(Path.GetFileNameWithoutExtension(file), Path.GetFileNameWithoutExtension(programFileName), StringComparison.OrdinalIgnoreCase) == 0)
+                        if (string.Compare(
+                                Path.GetFileNameWithoutExtension(file),
+                                Path.GetFileNameWithoutExtension(programFileName),
+                                StringComparison.OrdinalIgnoreCase) != 0)
                         {
-                            using (var sr = new StreamReader(file))
-                            {
-                                var contents = await sr.ReadToEndAsync();
-                                sr.Close();
-                                return contents;
-                            }
+                            continue;
+                        }
+
+                        using (var sr = new StreamReader(file))
+                        {
+                            var contents = await sr.ReadToEndAsync();
+                            sr.Close();
+                            return contents;
                         }
                     }
+                }
+            }
 
             return null;
         }
@@ -201,10 +217,15 @@ namespace Mudpie.Console.Data
         public override async Task SaveAsync(ICacheClient redis)
         {
             if (redis == null)
+            {
                 throw new ArgumentNullException(nameof(redis));
+            }
 
-            await redis.SetAddAsync<string>("mudpie::programs", this.DbRef);
-            await redis.AddAsync($"mudpie::program:{this.DbRef}", this);
+            await
+                Task.WhenAll(
+                    redis.SetAddAsync<string>("mudpie::programs", this.DbRef),
+                    redis.AddAsync($"mudpie::program:{this.DbRef}", this),
+                    CacheManager.UpdateAsync(this.DbRef, redis, this));
         }
     }
 }

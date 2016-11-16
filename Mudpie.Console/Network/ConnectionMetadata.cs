@@ -21,15 +21,24 @@ namespace Mudpie.Console.Network
     internal class ConnectionMetadata
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="ConnectionMetadata"/> class.
+        /// </summary>
+        /// <param name="connection">The connection this metadata is associated with</param>
+        public ConnectionMetadata([NotNull] Connection connection)
+        {
+            this.Connection = connection;
+        }
+
+        /// <summary>
         /// Gets or sets the remote address of the client that is connected to the server
         /// </summary>
         [NotNull]
-        public IPAddress RemoteAddress { get; set; }
+        public IPAddress RemoteAddress => this.Connection.RemoteAddress;
 
         /// <summary>
         /// Gets or sets the remote port of the client that is connected to the server
         /// </summary>
-        public int RemotePort { get; set; }
+        public int RemotePort => this.Connection.RemotePort;
 
         /// <summary>
         /// Gets or sets the number of messages sent over this connection
@@ -72,7 +81,7 @@ namespace Mudpie.Console.Network
         /// Gets or sets the username as authenticated successfully by the client to the server, if authenticated
         /// </summary>
         [CanBeNull]
-        public string AuthenticatedUsername { get; set; }
+        public string AuthenticatedUsername => this.Connection.Identity?.Username;
 
         /// <summary>
         /// Gets or sets the name of the principal associated with this connection
@@ -81,12 +90,12 @@ namespace Mudpie.Console.Network
         /// The user may have a principal but not be authenticated, such as with an anonymous user
         /// </remarks>
         [CanBeNull]
-        public string PrincipalName { get; set; }
+        public string PrincipalName => this.Connection.Identity?.Username;
 
         /// <summary>
-        /// Gets or sets the connection this metadata is associated with
+        /// Gets the connection this metadata is associated with
         /// </summary>
         [NotNull]
-        public Connection Connection { get; internal set; }
+        public Connection Connection { get; private set; }
     }
 }

@@ -27,11 +27,13 @@ namespace Mudpie.Console.Network
         /// <summary>
         /// The logging instance for this class
         /// </summary>
+        [NotNull]
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Listener));
 
         /// <summary>
         /// Thread signal
         /// </summary>
+        [NotNull]
         private readonly Server server;
 
         /// <summary>

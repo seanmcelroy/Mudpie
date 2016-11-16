@@ -104,10 +104,7 @@
                                                    Location = voidRoom.DbRef,
                                                    Target = 3
                                                };
-                            await linkLook.ReparentAsync(voidRoom.DbRef, redis);
-                            await linkLook.SaveAsync(redis);
-
-
+                            await linkLook.MoveAsync(voidRoom.DbRef, redis);
                         }
                         else
                         {

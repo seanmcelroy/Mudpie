@@ -9,12 +9,12 @@
 
 namespace Mudpie.Console.Scripting
 {
+    using System;
     using System.IO;
 
-    using JetBrains.Annotations;
+    using Data;
 
-    using Mudpie.Console.Data;
-    using Mudpie.Scripting.Common;
+    using JetBrains.Annotations;
 
     /// <summary>
     /// Global context variables passed into a program execution context
@@ -25,43 +25,120 @@ namespace Mudpie.Console.Scripting
         /// <summary>
         /// Initializes a new instance of the <see cref="ContextGlobals"/> class.
         /// </summary>
-        public ContextGlobals()
+        /// <param name="thisObject">
+        /// The object on which the verb for the command was found
+        /// </param>
+        /// <param name="caller">
+        /// The object on which the verb that called the currently-running
+        /// verb was found. For the first verb called for a given command, 'caller' has the
+        /// same value as <see cref="Player"/>.
+        /// </param>
+        /// <param name="playerOutput">
+        /// A text writer that can be used to send information back to the triggering object.
+        /// </param>
+        internal ContextGlobals([NotNull] ObjectBase thisObject, [CanBeNull] ObjectBase caller, [NotNull] TextWriter playerOutput)
         {
+            if (thisObject == null)
+            {
+                throw new ArgumentNullException(nameof(thisObject));
+            }
+
+            if (caller == null)
+            {
+                throw new ArgumentNullException(nameof(caller));
+            }
+
+            if (playerOutput == null)
+            {
+                throw new ArgumentNullException(nameof(playerOutput));
+            }
+
+            this.This = thisObject;
+            this.Caller = caller;
             this.PlayerInput = new PlayerInputStreamReader(this.PlayerInputStreamInternal);
             this.PlayerInputWriterInternal = new PlayerInputStreamWriter(this.PlayerInputWriterStreamInternal, this.PlayerInput);
+            this.PlayerOutput = playerOutput;
         }
+
+        /// <summary>
+        /// Gets the player who typed the command
+        /// </summary>
+        [CanBeNull]
+        public ObjectBase Player { get; internal set; }
 
         /// <summary>
         /// Gets the location of the triggering object
         /// </summary>
         [CanBeNull]
-        public ObjectBase Location { get; internal set; }
+        public ObjectBase PlayerLocation { get; internal set; }
 
         /// <summary>
-        /// Gets the unique identifier of the <see cref="Data.ObjectBase"/> that triggered the program execution
+        /// Gets the object on which the verb for the command was found
         /// </summary>
-        public DbRef? TriggerId { get; internal set; }
+        [NotNull]
+        public ObjectBase This { get; private set; }
 
         /// <summary>
-        /// Gets the type of the <see cref="Data.ObjectBase"/> that triggered the program execution
-        /// </summary>
-        /// <example>
-        /// Sample values are PLAYER and EXIT
-        /// </example>
-        [CanBeNull]
-        public string TriggerType { get; internal set; }
-
-        /// <summary>
-        /// Gets the name of the <see cref="Data.ObjectBase"/> that triggered the program execution
+        /// Gets the caller, the object on which the verb that called the currently-running
+        /// verb was found. For the first verb called for a given command, 'caller' has the
+        /// same value as <see cref="Player"/>.
         /// </summary>
         [CanBeNull]
-        public string TriggerName { get; internal set; }
+        public ObjectBase Caller { get; private set; }
 
+        /// <summary>
+        /// Gets the verb; a string, the name by which the currently-running verb was identified.
+        /// </summary>
+        [CanBeNull]
+        public string Verb { get; internal set; }
+
+        /// <summary>
+        /// Gets a string, everything after the first word of the command
+        /// </summary>
+        [CanBeNull]
+        public string ArgString { get; internal set; }
+
+        /// <summary>
+        /// Gets a list of strings, the words in <see cref="ArgString"/>
+        /// </summary>
+        [CanBeNull]
+        public string[] Args { get; internal set; }
+
+        /// <summary>
+        /// Gets a string, the direct object string found during parsing
+        /// </summary>
+        [CanBeNull]
+        public string DirectObjectString { get; internal set; }
+
+        /// <summary>
+        /// Gets an object, the direct object value found during matching
+        /// </summary>
+        [CanBeNull]
+        public ObjectBase DirectObject { get; internal set; }
+
+        /// <summary>
+        /// Gets a string, the prepositional phrase string found during parsing
+        /// </summary>
+        [CanBeNull]
+        public string PrepositionString { get; internal set; }
+
+        /// <summary>
+        /// Gets a string, the indirect object string found during parsing
+        /// </summary>
+        [CanBeNull]
+        public string IndirectObjectString { get; internal set; }
+
+        /// <summary>
+        /// Gets an object, the indirect object value found during matching
+        /// </summary>
+        [CanBeNull]
+        public ObjectBase IndirectObject { get; internal set; }
+        
         /// <summary>
         /// Gets a text writer that can be used to send information back to the triggering object.
         /// </summary>
-        [CanBeNull]
-        public TextWriter PlayerOutput { get; internal set; }
+        [NotNull]
+        public TextWriter PlayerOutput { get; private set; }
 
         /// <summary>
         /// Gets a <see cref="StreamWriter"/> that is used by the internal <see cref="Network.Connection"/> to store input received by a player

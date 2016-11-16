@@ -72,6 +72,7 @@ namespace Mudpie.Console.Data
         public override bool Equals(object obj)
         {
             // If parameter is null return false.
+            // ReSharper disable once UseNullPropagation
             if (obj == null)
             {
                 return false;
@@ -79,8 +80,11 @@ namespace Mudpie.Console.Data
 
             // If parameter cannot be cast to Player return false.
             var p = obj as Player;
+            // ReSharper disable once RedundantCast
             if ((object)p == null)
+            {
                 return false;
+            }
 
             // Return true if the fields match:
             return this.InternalId == p.InternalId;
@@ -100,9 +104,12 @@ namespace Mudpie.Console.Data
                 throw new ArgumentNullException(nameof(redis));
             }
 
-            await redis.SetAddAsync<string>("mudpie::players", this.DbRef);
-            await redis.AddAsync($"mudpie::player:{this.DbRef}", this);
-            await redis.HashSetAsync("mudpie::usernames", this.Username.ToLowerInvariant(), this.DbRef);
+            await
+                Task.WhenAll(
+                    redis.SetAddAsync<string>("mudpie::players", this.DbRef),
+                    redis.AddAsync($"mudpie::player:{this.DbRef}", this),
+                    redis.HashSetAsync("mudpie::usernames", this.Username.ToLowerInvariant(), this.DbRef),
+                    CacheManager.UpdateAsync(this.DbRef, redis, this));
         }
 
         internal void SetPassword([NotNull] SecureString password)

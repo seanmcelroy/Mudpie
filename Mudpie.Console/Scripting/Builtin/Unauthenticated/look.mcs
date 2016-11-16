@@ -1,2 +1,2 @@
-﻿PlayerOutput.WriteLine($"{Location?.Name}({Location?.DbRef})");
-PlayerOutput.WriteLine(Location? .Description);
+﻿PlayerOutput.WriteLine($"{PlayerLocation?.Name}({PlayerLocation?.DbRef})");
+PlayerOutput.WriteLine(PlayerLocation?.Description);

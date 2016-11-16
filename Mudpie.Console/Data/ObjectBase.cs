@@ -17,6 +17,8 @@ namespace Mudpie.Console.Data
 
     using JetBrains.Annotations;
 
+    using log4net;
+
     using Mudpie.Scripting.Common;
 
     using StackExchange.Redis.Extensions.Core;
@@ -47,6 +49,12 @@ namespace Mudpie.Console.Data
             this.Name = name;
         }
 
+        /// <summary>
+        /// The logging utility instance to use to log events from this class
+        /// </summary>
+        [NotNull]
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(ObjectBase));
+        
         /// <summary>
         /// Gets or sets the database reference of the object
         /// </summary>
@@ -171,7 +179,8 @@ namespace Mudpie.Console.Data
                 return await Room.GetAsync(redis, reference);
             }
 
-            throw new NotImplementedException();
+            Logger.Warn($"Unable to resolve DbRef {reference}");
+            return null;
         }
 
         public void AddContents(params DbRef[] references)
@@ -216,14 +225,20 @@ namespace Mudpie.Console.Data
                 }
         }
 
-        public async Task ReparentAsync(DbRef newParent, [NotNull] ICacheClient redis)
+        [NotNull]
+        public async Task MoveAsync(DbRef newLocation, [NotNull] ICacheClient redis)
         {
-            Debug.Assert(!newParent.Equals(DbRef.NOTHING), "!newParent.Equals(DbRef.NOTHING)");
-            Debug.Assert(!newParent.Equals(DbRef.AMBIGUOUS), "!newParent.Equals(DbRef.AMBIGUOUS)");
-            Debug.Assert(!newParent.Equals(DbRef.FAILED_MATCH), "!newParent.Equals(DbRef.FAILED_MATCH)");
-            
+            Debug.Assert(!newLocation.Equals(DbRef.NOTHING), "!newLocation.Equals(DbRef.NOTHING)");
+            Debug.Assert(!newLocation.Equals(DbRef.AMBIGUOUS), "!newLocation.Equals(DbRef.AMBIGUOUS)");
+            Debug.Assert(!newLocation.Equals(DbRef.FAILED_MATCH), "!newLocation.Equals(DbRef.FAILED_MATCH)");
+
+            if (redis == null)
+            {
+                throw new ArgumentNullException(nameof(redis));
+            }
+
             var oldParentObject = this.Parent.Equals(DbRef.NOTHING) ? null : await CacheManager.LookupOrRetrieveAsync(this.Parent, redis, async d => await GetAsync(redis, d));
-            var newParentObject = await CacheManager.LookupOrRetrieveAsync(newParent, redis, async d => await GetAsync(redis, d));
+            var newParentObject = await CacheManager.LookupOrRetrieveAsync(newLocation, redis, async d => await GetAsync(redis, d));
 
             if (newParentObject != null)
             {
@@ -236,6 +251,27 @@ namespace Mudpie.Console.Data
                 newParentObject.DataObject.AddContents(this.DbRef);
                 await newParentObject.DataObject.SaveAsync(redis);
 
+                this.Location = newLocation;
+                await this.SaveAsync(redis);
+            }
+        }
+
+        [NotNull]
+        public async Task ReparentAsync(DbRef newParent, [NotNull] ICacheClient redis)
+        {
+            Debug.Assert(!newParent.Equals(DbRef.NOTHING), "!newParent.Equals(DbRef.NOTHING)");
+            Debug.Assert(!newParent.Equals(DbRef.AMBIGUOUS), "!newParent.Equals(DbRef.AMBIGUOUS)");
+            Debug.Assert(!newParent.Equals(DbRef.FAILED_MATCH), "!newParent.Equals(DbRef.FAILED_MATCH)");
+
+            if (redis == null)
+            {
+                throw new ArgumentNullException(nameof(redis));
+            }
+
+            var newParentObject = await CacheManager.LookupOrRetrieveAsync(newParent, redis, async d => await GetAsync(redis, d));
+
+            if (newParentObject != null)
+            {
                 this.Parent = newParent;
                 await this.SaveAsync(redis);
             }

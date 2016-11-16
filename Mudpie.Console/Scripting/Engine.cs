@@ -9,6 +9,7 @@
 
 namespace Mudpie.Console.Scripting
 {
+    using System.Diagnostics;
     using System.IO;
     using System.Threading;
     using System.Threading.Tasks;
@@ -42,12 +43,25 @@ namespace Mudpie.Console.Scripting
         }
         
         /// <summary>
-        /// Gets the Redis instance used by the engine
+        /// Gets the client proxy to the data store instance used by the engine
         /// </summary>
         internal ICacheClient Redis => this.redis;
         
         [NotNull, ItemNotNull]
-        public async Task<Context<T>> RunProgramAsync<T>(DbRef programRef, [CanBeNull] ObjectBase trigger, [CanBeNull] Network.Connection connection, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<Context<T>> RunProgramAsync<T>(
+            DbRef programRef,
+            [CanBeNull] Network.Connection connection,
+            [NotNull] ObjectBase thisObject,
+            [CanBeNull] ObjectBase caller,
+            [CanBeNull] string verb,
+            [CanBeNull] string argString,
+            [CanBeNull] string[] args,
+            [CanBeNull] string directObjectString,
+            [CanBeNull] ObjectBase directObject,
+            [CanBeNull] string prepositionString,
+            [CanBeNull] string indirectObjectString,
+            [CanBeNull] ObjectBase indirectObject,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (programRef.Equals(DbRef.NOTHING))
             {
@@ -64,7 +78,7 @@ namespace Mudpie.Console.Scripting
             }
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-            if (trigger == null && !program.UnauthenticatedExecution)
+            if (connection?.Identity == null && !program.UnauthenticatedExecution)
             {
                 return Context<T>.Error(program, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
             }
@@ -75,13 +89,20 @@ namespace Mudpie.Console.Scripting
             using (var outputStreamWriter = new StreamWriter(outputStream))
             using (var outputCancellationTokenSource = new CancellationTokenSource())
             {
-                var scriptGlobals = new ContextGlobals
+                Debug.Assert(outputStreamWriter != null, "outputStreamWriter != null");
+
+                var scriptGlobals = new ContextGlobals(thisObject, caller, outputStreamWriter)
                 {
-                    Location = trigger == null ? null : (await CacheManager.LookupOrRetrieveAsync(trigger.Location, this.Redis, async d => await Room.GetAsync(this.Redis, d))).DataObject,
-                    TriggerId = trigger?.DbRef,
-                    TriggerName = trigger?.Name,
-                    TriggerType = trigger is Player ? "PLAYER" : "?",
-                    PlayerOutput = outputStreamWriter
+                    ArgString = argString,
+                    Args = args,
+                    DirectObject = directObject,
+                    DirectObjectString = directObjectString,
+                    IndirectObject = indirectObject,
+                    IndirectObjectString = indirectObjectString,
+                    Player = connection?.Identity,
+                    PlayerLocation = connection?.Identity == null ? null : (await CacheManager.LookupOrRetrieveAsync(connection.Identity.Location, this.Redis, async d => await Room.GetAsync(this.Redis, d)))?.DataObject,
+                    PrepositionString = prepositionString,
+                    Verb = verb
                 };
 
                 var outputLastPositionRead = 0L;

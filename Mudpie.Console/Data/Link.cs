@@ -41,10 +41,15 @@ namespace Mudpie.Console.Data
         public override async Task SaveAsync(ICacheClient redis)
         {
             if (redis == null)
+            {
                 throw new ArgumentNullException(nameof(redis));
+            }
 
-            await redis.SetAddAsync<string>("mudpie::links", this.DbRef);
-            await redis.AddAsync($"mudpie::link:{this.DbRef}", this);
+            await
+                Task.WhenAll(
+                    redis.SetAddAsync<string>("mudpie::links", this.DbRef),
+                    redis.AddAsync($"mudpie::link:{this.DbRef}", this),
+                    CacheManager.UpdateAsync(this.DbRef, redis, this));
         }
     }
 }

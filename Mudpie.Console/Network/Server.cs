@@ -16,7 +16,6 @@ namespace Mudpie.Console.Network
     using System.Net;
     using System.Net.Sockets;
     using System.Security;
-    using System.Security.Cryptography.X509Certificates;
     using System.Security.Permissions;
     using System.Threading;
     using System.Threading.Tasks;
@@ -51,6 +50,11 @@ namespace Mudpie.Console.Network
         private readonly List<Connection> connections = new List<Connection>();
 
         /// <summary>
+        /// A cancellation source that is used to cancel all asynchronous operations within the server once the <see cref="Stop"/> operation is called
+        /// </summary>
+        private CancellationTokenSource cts;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Server"/> class.
         /// </summary>
         /// <param name="clearPorts">
@@ -62,9 +66,14 @@ namespace Mudpie.Console.Network
         public Server([NotNull] int[] clearPorts, [NotNull] Scripting.Engine scriptingEngine)
         {
             if (clearPorts == null)
+            {
                 throw new ArgumentNullException(nameof(clearPorts));
+            }
+
             if (scriptingEngine == null)
+            {
                 throw new ArgumentNullException(nameof(scriptingEngine));
+            }
 
             this.ShowData = true;
             this.ClearPorts = clearPorts;
@@ -72,29 +81,10 @@ namespace Mudpie.Console.Network
         }
 
         /// <summary>
-        /// Gets the scripting engine that will handle commands sent by connections to the server
+        /// Gets the metadata about the connections to this server instance
         /// </summary>
         [NotNull]
-        internal Scripting.Engine ScriptingEngine { get; private set; }
-
-        [NotNull]
-        public IReadOnlyList<ConnectionMetadata> Connections
-        {
-            get
-            {
-                return this.connections
-                    .Where(c => c != null)
-                    .Select(c => new ConnectionMetadata
-                {
-                    AuthenticatedUsername = c.Identity?.Username,
-                    PrincipalName = c.Identity?.Username,
-                    RemoteAddress = c.RemoteAddress,
-                    RemotePort = c.RemotePort
-                })
-                .ToList()
-                .AsReadOnly();
-            }
-        }
+        public IReadOnlyList<ConnectionMetadata> Connections => this.connections.Where(c => c != null).Select(c => new ConnectionMetadata(c)).ToList().AsReadOnly();
 
         /// <summary>
         /// Gets or sets a value indicating whether the byte transmitted counts are logged to the logging instance
@@ -113,20 +103,19 @@ namespace Mudpie.Console.Network
         /// </summary>
         [PublicAPI]
         public bool ShowData { get; set; }
-
+        
         /// <summary>
-        /// Gets the X.509 server certificate this instance presents to clients
-        /// attempting to connect via TLS.
+        /// Gets the scripting engine that will handle commands sent by connections to the server
         /// </summary>
-        [CanBeNull]
-        internal X509Certificate2 ServerAuthenticationCertificate { get; private set; }
+        [NotNull]
+        internal Scripting.Engine ScriptingEngine { get; private set; }
 
         /// <summary>
         /// Gets the ports over which clear-text communications are permitted
         /// </summary>
         [NotNull]
         private int[] ClearPorts { get; }
-
+        
         #region Connection and IO
         /// <summary>
         /// Starts listener threads to begin processing requests
@@ -136,8 +125,12 @@ namespace Mudpie.Console.Network
         [StorePermission(SecurityAction.Demand, EnumerateCertificates = true, OpenStore = true)]
         public void Start()
         {
-            var cts = new CancellationTokenSource();
+            if (this.cts != null)
+            {
+                throw new InvalidOperationException("Server is already running and cannot be started a second time");
+            }
 
+            this.cts = new CancellationTokenSource();
             this.listeners.Clear();
             
             foreach (var clearPort in this.ClearPorts)
@@ -151,7 +144,7 @@ namespace Mudpie.Console.Network
                     PortType = PortClass.ClearText
                 };
 
-                this.listeners.Add(new Tuple<Thread, Listener>(new Thread(async () => await listener.StartAcceptingAsync(cts.Token)), listener));
+                this.listeners.Add(new Tuple<Thread, Listener>(new Thread(async () => await listener.StartAcceptingAsync(this.cts.Token)), listener));
             }
 
             foreach (var listener in this.listeners)
@@ -167,13 +160,20 @@ namespace Mudpie.Console.Network
                 catch (OutOfMemoryException oom)
                 {
                     Logger.Error("Unable to start listener thread.  Not enough memory.", oom);
-                    cts.Cancel();
+                    this.cts.Cancel();
                 }
             }
         }
 
         public void Stop()
         {
+            if (this.cts == null)
+            {
+                throw new InvalidOperationException("Server is already stopped");
+            }
+
+            this.cts.Cancel();
+
             foreach (var listener in this.listeners)
             {
                 try
@@ -187,7 +187,7 @@ namespace Mudpie.Console.Network
                 }
             }
 
-            Task.WaitAll(this.connections.Select(connection => connection?.Shutdown()).ToArray());
+            Task.WaitAll(this.connections.Select(connection => connection?.ShutdownAsync()).ToArray());
 
             foreach (var thread in this.listeners)
             {
@@ -210,21 +210,43 @@ namespace Mudpie.Console.Network
                     Environment.Exit(tse.HResult);
                 }
             }
+
+            this.cts = null;
         }
 
         internal void AddConnection([NotNull] Connection connection)
         {
             this.connections.Add(connection);
-            Logger.VerboseFormat("Connection from {0}:{1} to {2}:{3}", connection.RemoteAddress, connection.RemotePort, connection.LocalAddress, connection.LocalPort);
+            Logger.VerboseFormat(
+                "Connection from {0}:{1} to {2}:{3}",
+                connection.RemoteAddress,
+                connection.RemotePort,
+                connection.LocalAddress,
+                connection.LocalPort);
         }
 
         internal void RemoveConnection([NotNull] Connection connection)
         {
             this.connections.Remove(connection);
             if (connection.Identity == null)
-                Logger.VerboseFormat("Disconnection from {0}:{1}", connection.RemoteAddress, connection.RemotePort, connection.LocalAddress, connection.LocalPort);
+            {
+                Logger.VerboseFormat(
+                    "Disconnection from {0}:{1}",
+                    connection.RemoteAddress,
+                    connection.RemotePort,
+                    connection.LocalAddress,
+                    connection.LocalPort);
+            }
             else
-                Logger.VerboseFormat("Disconnection from {0}:{1} ({2})", connection.RemoteAddress, connection.RemotePort, connection.LocalAddress, connection.LocalPort, connection.Identity.Username);
+            {
+                Logger.VerboseFormat(
+                    "Disconnection from {0}:{1} ({2})",
+                    connection.RemoteAddress,
+                    connection.RemotePort,
+                    connection.LocalAddress,
+                    connection.LocalPort,
+                    connection.Identity.Username);
+            }
         }
         #endregion
     }

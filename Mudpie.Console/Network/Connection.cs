@@ -198,6 +198,10 @@ namespace Mudpie.Console.Network
         private bool ShowData { get; }
 
         #region IO and Connection Management
+        /// <summary>
+        /// Processing loop to handle incoming bytes on a connection
+        /// </summary>
+        /// <param name="cancellationToken">A cancellation token used to abort the processing loop</param>
         public async void Process(CancellationToken cancellationToken = default(CancellationToken))
         {
             await this.SendAsync("200 Service available, posting allowed\r\n");
@@ -215,7 +219,7 @@ namespace Mudpie.Console.Network
 
                     if (!this.stream.CanRead)
                     {
-                        await this.Shutdown();
+                        await this.ShutdownAsync();
                         return;
                     }
 
@@ -235,15 +239,15 @@ namespace Mudpie.Console.Network
                     // Clear builder FIRST in case another command comes in while executing.
                     this.builder.Clear();
 
-
                     // All the data has been read from the 
                     // client. Display it on the console.
                     if (this.ShowBytes && this.ShowData)
                     {
                         Logger.TraceFormat(
-                            "{0}:{1} >{2}> {3} bytes: {4}",
+                            "{0}:{1}{2} >{3}> {4} bytes: {5}",
                             this.RemoteAddress,
                             this.RemotePort,
+                            this.Identity == null ? null : $"({this.Identity.Username})",
                             ">",
                             content.Length,
                             content.TrimEnd('\r', '\n'));
@@ -251,18 +255,20 @@ namespace Mudpie.Console.Network
                     else if (this.ShowBytes)
                     {
                         Logger.TraceFormat(
-                            "{0}:{1} >{2}> {3} bytes",
+                            "{0}:{1}{2} >{3}> {4} bytes",
                             this.RemoteAddress,
                             this.RemotePort,
+                            this.Identity == null ? null : $"({this.Identity.Username})",
                             ">",
                             content.Length);
                     }
                     else if (this.ShowData)
                     {
                         Logger.TraceFormat(
-                            "{0}:{1} >{2}> {3}",
+                            "{0}:{1}{2} >{3}> {4}",
                             this.RemoteAddress,
                             this.RemotePort,
+                            this.Identity == null ? null : $"({this.Identity.Username})",
                             ">",
                             content.TrimEnd('\r', '\n'));
                     }
@@ -282,9 +288,10 @@ namespace Mudpie.Console.Network
                         Debug.Assert(this.programInputHandler != null, "this._programInputHandler != null");
                         this.programInputHandler.Invoke(content);
                     }
-                    else
+                    else if (await this.ProcessMessageAsync(content, cancellationToken))
                     {
-                        await this.ProcessMessageAsync(content, cancellationToken);
+                        await this.ShutdownAsync();
+                        return;
                     }
                 }
             }
@@ -310,6 +317,24 @@ namespace Mudpie.Console.Network
             }
         }
 
+        /// <summary>
+        /// Sends the formatted data to the client
+        /// </summary>
+        /// <param name="format">The data, or format string for data, to send to the client</param>
+        /// <param name="args">The argument applied as a format string to <paramref name="format"/> to create the data to send to the client</param>
+        /// <returns>A value indicating whether or not the transmission was successful</returns>
+        [StringFormatMethod("format"), NotNull]
+        internal async Task<bool> SendAsync([NotNull] string format, [NotNull] params object[] args)
+        {
+            return await this.SendInternalAsync(string.Format(CultureInfo.InvariantCulture, format, args));
+        }
+
+        /// <summary>
+        /// Processing subroutine to handle incoming messages from a connection's <see cref="Process"/> command
+        /// </summary>
+        /// <param name="content">The message received from the <see cref="Process"/> message handling loop</param>
+        /// <param name="cancellationToken">A cancellation token used to abort the processing loop</param>
+        /// <returns>A value indicating whether or not the parent message loop should quit</returns>
         private async Task<bool> ProcessMessageAsync(
             string content,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -363,6 +388,8 @@ namespace Mudpie.Console.Network
 
                 var words = wordMatches.Cast<Match>().Select(m => m.Groups[0].Value).ToArray();
                 var verb = words.ElementAtOrDefault(0);
+                var argString = verb == null ? null : content.TrimStart().Substring(verb.Trim().Length).Trim();
+
                 Debug.Assert(!string.IsNullOrWhiteSpace("verb"), "Verb not specified");
 
                 for (var i = 1; i < words.Length; i++)
@@ -382,7 +409,7 @@ namespace Mudpie.Console.Network
                 var prepFoundStart = -1;
                 foreach (var word in words.Skip(1))
                 {
-                    if (prepositions.Any(p => word.IndexOf(p, StringComparison.OrdinalIgnoreCase) > -1))
+                    if (verb != null && prepositions.Any(p => word.IndexOf(p, StringComparison.OrdinalIgnoreCase) > -1))
                     {
                         prep = word;
                         prepFoundStart = content.IndexOf(word, verb.Length, StringComparison.Ordinal);
@@ -395,7 +422,7 @@ namespace Mudpie.Console.Network
                 }
 
                 string indirectObject = null;
-                string directObject;
+                string directObject = null;
                 if (prep != null)
                 {
                     directObject =
@@ -409,7 +436,7 @@ namespace Mudpie.Console.Network
                             .Replace("\"", string.Empty)
                             .Trim();
                 }
-                else
+                else if (verb != null)
                 {
                     directObject =
                         content.Substring(verb.Length)
@@ -422,49 +449,48 @@ namespace Mudpie.Console.Network
                     $"{content.TrimEnd('\r', '\n')} => VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}");
 
                 #region Matching
-
-                var directObjectReference = directObject == null
-                                                ? DbRef.NOTHING
+                var directObjectReferenceAndObject = directObject == null
+                                                ? new Tuple<DbRef, ObjectBase>(DbRef.FAILED_MATCH, null)
                                                 : await
                                                       MatchUtility.MatchObjectAsync(
                                                           this.Identity,
                                                           this.server.ScriptingEngine.Redis,
                                                           directObject);
-                Logger.Verbose($"{directObject} => REF: {directObjectReference}");
-                var indirectObjectReference = indirectObject == null
-                                                  ? DbRef.NOTHING
+                Logger.Verbose($"{directObject} => REF: {directObjectReferenceAndObject.Item1}");
+                var indirectObjectReferenceAndObject = indirectObject == null
+                                                  ? new Tuple<DbRef, ObjectBase>(DbRef.FAILED_MATCH, null)
                                                   : await
                                                         MatchUtility.MatchObjectAsync(
                                                             this.Identity,
                                                             this.server.ScriptingEngine.Redis,
                                                             indirectObject);
-                Logger.Verbose($"{indirectObject} => REF: {indirectObjectReference}");
-                var verbReference = verb == null
-                                        ? DbRef.NOTHING
+                Logger.Verbose($"{indirectObject} => REF: {indirectObjectReferenceAndObject.Item1}");
+                var verbReferenceAndObject = verb == null
+                                        ? new Tuple<DbRef, ObjectBase>(DbRef.NOTHING, null)
                                         : await
                                               MatchUtility.MatchVerbAsync(
                                                   this.Identity,
                                                   this.server.ScriptingEngine.Redis,
                                                   verb,
-                                                  directObjectReference,
-                                                  indirectObjectReference);
-                Logger.Verbose($"{verb} => REF: {verbReference}");
+                                                  directObjectReferenceAndObject.Item1,
+                                                  indirectObjectReferenceAndObject.Item1);
+                Logger.Verbose($"{verb} => REF: {verbReferenceAndObject.Item1}");
 
                 #endregion
 
-                if (verbReference.Equals(DbRef.AMBIGUOUS))
+                if (verbReferenceAndObject.Item1.Equals(DbRef.AMBIGUOUS))
                 {
                     await this.SendAsync("Which one?\r\n");
                     return false;
                 }
 
-                if (verbReference.Equals(DbRef.FAILED_MATCH))
+                if (verbReferenceAndObject.Item1.Equals(DbRef.FAILED_MATCH))
                 {
                     await this.SendAsync("Er?\r\n");
                     return false;
                 }
 
-                var link = await Link.GetAsync(this.server.ScriptingEngine.Redis, verbReference);
+                var link = verbReferenceAndObject.Item2 as Link;
                 Debug.Assert(link != null, "link != null");
 
                 var target = await ObjectBase.GetAsync(this.server.ScriptingEngine.Redis, link.Target);
@@ -485,8 +511,17 @@ namespace Mudpie.Console.Network
                                     await
                                         this.server.ScriptingEngine.RunProgramAsync<int>(
                                             target.DbRef,
-                                            this.Identity,
                                             this,
+                                            verbReferenceAndObject.Item2,
+                                            this.Identity,
+                                            verb,
+                                            argString,
+                                            words.Skip(1).ToArray(),
+                                            directObject,
+                                            directObjectReferenceAndObject.Item2,
+                                            prep,
+                                            indirectObject,
+                                            indirectObjectReferenceAndObject.Item2,
                                             cancellationToken);
                                 if (context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound
                                     || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
@@ -539,15 +574,8 @@ namespace Mudpie.Console.Network
         /// <summary>
         /// Sends the formatted data to the client
         /// </summary>
-        /// <param name="format">The data, or format string for data, to send to the client</param>
-        /// <param name="args">The argument applied as a format string to <paramref name="format"/> to create the data to send to the client</param>
+        /// <param name="data">The data to send to the client</param>
         /// <returns>A value indicating whether or not the transmission was successful</returns>
-        [StringFormatMethod("format"), NotNull]
-        internal async Task<bool> SendAsync([NotNull] string format, [NotNull] params object[] args)
-        {
-            return await this.SendInternalAsync(string.Format(CultureInfo.InvariantCulture, format, args));
-        }
-
         private async Task<bool> SendInternalAsync([NotNull] string data)
         {
             // Convert the string data to byte data using ASCII encoding.
@@ -560,9 +588,10 @@ namespace Mudpie.Console.Network
                 if (this.ShowBytes && this.ShowData)
                 {
                     Logger.TraceFormat(
-                        "{0}:{1} <{2}{3} {4} bytes: {5}",
+                        "{0}:{1}{2} <{3}{4} {5} bytes: {6}",
                         this.RemoteAddress,
                         this.RemotePort,
+                        this.Identity == null ? null : $"({this.Identity.Username})",
                         "<",
                         "<",
                         byteData.Length,
@@ -571,9 +600,10 @@ namespace Mudpie.Console.Network
                 else if (this.ShowBytes)
                 {
                     Logger.TraceFormat(
-                        "{0}:{1} <{2}{3} {4} bytes",
+                        "{0}:{1}{2} <{3}{4} {5} bytes",
                         this.RemoteAddress,
                         this.RemotePort,
+                        this.Identity == null ? null : $"({this.Identity.Username})",
                         "<",
                         "<",
                         byteData.Length);
@@ -581,9 +611,10 @@ namespace Mudpie.Console.Network
                 else if (this.ShowData)
                 {
                     Logger.TraceFormat(
-                        "{0}:{1} <{2}{3} {4}",
+                        "{0}:{1}{2} <{3}{4} {5}",
                         this.RemoteAddress,
                         this.RemotePort,
+                        this.Identity == null ? null : $"({this.Identity.Username})",
                         "<",
                         "<",
                         data.TrimEnd('\r', '\n'));
@@ -610,34 +641,44 @@ namespace Mudpie.Console.Network
             }
         }
 
+        /// <summary>
+        /// Redirects input from the connection to a <see cref="Program"/> input handler, running in a <see cref="Scripting.Engine"/>
+        /// </summary>
+        /// <param name="inputHandler">The input handler that recieves the redirect <see cref="Player"/> input</param>
         public void RedirectInputToProgram([NotNull] Action<string> inputHandler)
         {
             this.programInputHandler = inputHandler;
             this.Mode = ConnectionMode.InteractiveProgram;
         }
 
+        /// <summary>
+        /// Returns input back to the normal message <see cref="Process"/> loop
+        /// </summary>
         public void ResetInputRedirection()
         {
             this.Mode = ConnectionMode.Normal;
             this.programInputHandler = null;
         }
 
-        public async Task Shutdown()
+        /// <summary>
+        /// Permanently terminates the connection
+        /// </summary>
+        /// <returns>A task object used for asynchronous process</returns>
+        public async Task ShutdownAsync()
         {
             if (this.client.Connected)
             {
-                await this.SendAsync("205 closing connection\r\n");
+                await this.SendAsync("GOODBYE!\r\n");
                 this.client.Client?.Shutdown(SocketShutdown.Both);
                 this.client.Close();
+                this.client.Dispose();
             }
 
             this.server.RemoveConnection(this);
         }
-
         #endregion
 
         #region Commands
-
         /// <summary>
         /// Handles the CONNECT command from a client, which allows a client to authenticate against an existing
         /// player record for a username and a password
@@ -646,6 +687,7 @@ namespace Mudpie.Console.Network
         /// <returns>
         /// A command processing result specifying the command is handled.
         /// </returns>
+        [NotNull, ItemNotNull]
         private async Task<CommandProcessingResult> ConnectAsync([NotNull] string data)
         {
             var match = Regex.Match(data, @"connect\s+(?<username>[^\s]+)\s(?<password>[^\r\n]+)", RegexOptions.IgnoreCase);
