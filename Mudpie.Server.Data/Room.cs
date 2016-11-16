@@ -24,6 +24,24 @@ namespace Mudpie.Server.Data
     public class Room : ObjectBase
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="Room"/> class.
+        /// </summary>
+        /// <param name="roomName">The name of the room</param>
+        /// <param name="owner">The reference of the owner of the object</param>
+        public Room([NotNull] string roomName, DbRef owner)
+            : base(roomName, owner)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Room"/> class.
+        /// </summary>
+        [Obsolete("Only made public for a generic type parameter requirement", false)]
+        public Room()
+        {
+        }
+
+        /// <summary>
         /// Gets a <see cref="Room"/> from the underlying data store
         /// </summary>
         /// <param name="redis">The client proxy to access the underlying data store</param>

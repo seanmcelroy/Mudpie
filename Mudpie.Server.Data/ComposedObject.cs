@@ -44,6 +44,7 @@ namespace Mudpie.Server.Data
         /// <param name="redis">The client proxy to access the underlying data store to hydrate this instance</param>
         /// <param name="dataObject">The underlying <see cref="ObjectBase"/> that was collapsed to compose this object-oriented version that inherits parent properties</param>
         /// <returns>A tuple indicating whether the composed happened flawlessly (no unresolved references, and thus, cacheable), and the object as composed as it could be</returns>
+        [NotNull, ItemNotNull]
         public static async Task<Tuple<bool, ComposedObject>> CreateAsync([NotNull] ICacheClient redis, [NotNull] ObjectBase dataObject)
         {
             if (redis == null)

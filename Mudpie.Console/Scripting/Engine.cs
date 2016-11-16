@@ -53,7 +53,7 @@ namespace Mudpie.Console.Scripting
             DbRef programRef,
             [CanBeNull] Network.Connection connection,
             [NotNull] ObjectBase thisObject,
-            [CanBeNull] ObjectBase caller,
+            [NotNull] ObjectBase caller,
             [CanBeNull] string verb,
             [CanBeNull] string argString,
             [CanBeNull] string[] args,
@@ -92,7 +92,7 @@ namespace Mudpie.Console.Scripting
             {
                 Debug.Assert(outputStreamWriter != null, "outputStreamWriter != null");
 
-                var scriptGlobals = new ContextGlobals(thisObject, caller, outputStreamWriter)
+                var scriptGlobals = new ContextGlobals(thisObject, caller, outputStreamWriter, new Libraries.DatabaseLibrary(caller.DbRef, this.redis))
                 {
                     ArgString = argString,
                     Args = args,

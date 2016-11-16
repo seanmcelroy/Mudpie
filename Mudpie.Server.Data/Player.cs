@@ -29,6 +29,26 @@ namespace Mudpie.Server.Data
     public class Player : ObjectBase
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="Player"/> class.
+        /// </summary>
+        /// <param name="playerName">The name of the player</param>
+        /// <param name="owner">The reference of the owner of the object</param>
+        /// <param name="username">The identity of the user for authentication</param>
+        public Player([NotNull] string playerName, DbRef owner, [NotNull] string username)
+            : base(playerName, owner)
+        {
+            this.Username = username;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Player"/> class.
+        /// </summary>
+        [Obsolete("Only made public for a generic type parameter requirement", false)]
+        public Player()
+        {
+        }
+
+        /// <summary>
         /// Gets or sets the identity of the user for authentication
         /// </summary>
         [NotNull]

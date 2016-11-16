@@ -10,7 +10,6 @@
 namespace Mudpie.Server.Data
 {
     using System;
-    using System.Diagnostics;
     using System.Runtime.Caching;
     using System.Threading.Tasks;
 
@@ -106,6 +105,7 @@ namespace Mudpie.Server.Data
         /// <param name="redis">The client to access the data store to compose the object</param>
         /// <param name="updatedDataObject">The updated <see cref="ObjectBase"/></param>
         /// <returns>The composed representation of the object with the supplied <see cref="reference"/></returns>
+        [NotNull, ItemNotNull]
         public static async Task<ComposedObject> UpdateAsync<T>(
             DbRef reference,
             [NotNull] ICacheClient redis,

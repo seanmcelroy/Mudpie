@@ -43,10 +43,6 @@
         /// </summary>
         DbRef Parent { get; set; }
 
-        void AddContents(params DbRef[] references);
-
-        void RemoveContents(params DbRef[] references);
-
         Task MoveAsync(DbRef newLocation, [NotNull] ICacheClient redis);
 
         Task ReparentAsync(DbRef newParent, [NotNull] ICacheClient redis);
@@ -56,6 +52,7 @@
         /// </summary>
         /// <param name="redis">The client proxy to access the underlying data store</param>
         /// <returns>A task object used to await this method for completion</returns>
+        [NotNull]
         Task SaveAsync([NotNull] ICacheClient redis);
     }
 

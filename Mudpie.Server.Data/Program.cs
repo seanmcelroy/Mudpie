@@ -48,11 +48,12 @@ namespace Mudpie.Server.Data
         /// Initializes a new instance of the <see cref="Program"/> class.
         /// </summary>
         /// <param name="programName">The name of the program</param>
+        /// <param name="owner">The reference of the owner of the object</param>
         /// <param name="scriptSourceCode">The C# lines of script source code</param>
         /// <param name="unauthenticated">Whether or not the program may be run from an authenticated <see cref="Network.Connection"/></param>
         /// <exception cref="ArgumentNullException">Thrown of the <paramref name="scriptSourceCode"/> is specified as null</exception>
-        public Program([NotNull] string programName, [NotNull] string scriptSourceCode, bool unauthenticated = false)
-            : base(programName)
+        public Program([NotNull] string programName, DbRef owner, [NotNull] string scriptSourceCode, bool unauthenticated = false)
+            : base(programName, owner)
         {
             if (programName == null)
                 throw new ArgumentNullException(nameof(programName));
@@ -67,11 +68,12 @@ namespace Mudpie.Server.Data
         /// Initializes a new instance of the <see cref="Program"/> class.
         /// </summary>
         /// <param name="programName">The name of the program</param>
+        /// <param name="owner">The reference of the owner of the object</param>
         /// <param name="scriptSourceCodeLines">The C# lines of script source code</param>
         /// <param name="unauthenticated">Whether or not the program may be run from an authenticated <see cref="Network.Connection"/></param>
         /// <exception cref="ArgumentNullException">Thrown of the <paramref name="scriptSourceCodeLines"/> is specified as null</exception>
-        public Program([NotNull] string programName, [NotNull] string[] scriptSourceCodeLines, bool unauthenticated = false)
-            : base(programName)
+        public Program([NotNull] string programName, DbRef owner, [NotNull] string[] scriptSourceCodeLines, bool unauthenticated = false)
+            : base(programName, owner)
         {
             if (scriptSourceCodeLines == null)
                 throw new ArgumentNullException(nameof(scriptSourceCodeLines));
@@ -85,7 +87,8 @@ namespace Mudpie.Server.Data
         /// <summary>
         /// Initializes a new instance of the <see cref="Program"/> class.
         /// </summary>
-        protected Program()
+        [Obsolete("Only made public for a generic type parameter requirement", false)]
+        public Program()
         {
             this.ScriptSourceCodeLines = new List<string>(0);
         }
@@ -94,8 +97,9 @@ namespace Mudpie.Server.Data
         /// Initializes a new instance of the <see cref="Program"/> class.
         /// </summary>
         /// <param name="programName">The name of the program</param>
-        protected Program([NotNull] string programName)
-            : base(programName)
+        /// <param name="owner">The reference of the owner of the object</param>
+        protected Program([NotNull] string programName, DbRef owner)
+            : base(programName, owner)
         {
             this.ScriptSourceCodeLines = new List<string>(0);
         }

@@ -40,13 +40,22 @@ namespace Mudpie.Server.Data
         /// Initializes a new instance of the <see cref="ObjectBase"/> class.
         /// </summary>
         /// <param name="name">Name of the object</param>
+        /// <param name="owner">The reference of the owner of the object</param>
         /// <exception cref="ArgumentNullException">Thrown if the name is null</exception>
-        protected ObjectBase([NotNull] string name)
+        protected ObjectBase([NotNull] string name, DbRef owner)
         {
             if (string.IsNullOrWhiteSpace(name))
+            {
                 throw new ArgumentNullException(nameof(name));
+            }
+
+            if (owner <= 0)
+            {
+                throw new ArgumentException($"Owner must be set; value provided was {owner}", nameof(owner));
+            }
 
             this.Name = name;
+            this.Owner = owner;
         }
 
         /// <summary>
@@ -80,6 +89,12 @@ namespace Mudpie.Server.Data
         /// </summary>
         [CanBeNull]
         public string[] Aliases { get; set; }
+
+        /// <summary>
+        /// Gets or sets the owner of the object
+        /// </summary>
+        [NotNull]
+        public DbRef Owner { get; set; }
 
         /// <summary>
         /// Gets or sets the description of the object if a user were to observe it directly
@@ -183,7 +198,7 @@ namespace Mudpie.Server.Data
             return null;
         }
 
-        public void AddContents(params DbRef[] references)
+        private void AddContents(params DbRef[] references)
         {
             if (references != null)
                 foreach (var reference in references)
@@ -205,7 +220,7 @@ namespace Mudpie.Server.Data
                 }
         }
 
-        public void RemoveContents(params DbRef[] references)
+        private void RemoveContents(params DbRef[] references)
         {
             if (references != null)
                 foreach (var reference in references)
@@ -226,7 +241,7 @@ namespace Mudpie.Server.Data
         }
 
         [NotNull]
-        public async Task MoveAsync(DbRef newLocation, [NotNull] ICacheClient redis)
+        public async Task MoveAsync(DbRef newLocation, ICacheClient redis)
         {
             Debug.Assert(!newLocation.Equals(DbRef.NOTHING), "!newLocation.Equals(DbRef.NOTHING)");
             Debug.Assert(!newLocation.Equals(DbRef.AMBIGUOUS), "!newLocation.Equals(DbRef.AMBIGUOUS)");
@@ -237,22 +252,27 @@ namespace Mudpie.Server.Data
                 throw new ArgumentNullException(nameof(redis));
             }
 
-            var oldParentObject = this.Parent.Equals(DbRef.NOTHING) ? null : await CacheManager.LookupOrRetrieveAsync(this.Parent, redis, async d => await GetAsync(redis, d));
-            var newParentObject = await CacheManager.LookupOrRetrieveAsync(newLocation, redis, async d => await GetAsync(redis, d));
+            if (this.Location.Equals(newLocation))
+                return;
 
-            if (newParentObject != null)
+            var oldLocationObject = this.Location.Equals(DbRef.NOTHING) ? null : await CacheManager.LookupOrRetrieveAsync(this.Location, redis, async d => await GetAsync(redis, d));
+            var newLocationObject = await CacheManager.LookupOrRetrieveAsync(newLocation, redis, async d => await GetAsync(redis, d));
+
+            if (newLocationObject != null)
             {
-                if (oldParentObject != null)
+                if (oldLocationObject != null)
                 {
-                    oldParentObject.DataObject.RemoveContents(this.DbRef);
-                    await oldParentObject.DataObject.SaveAsync(redis);
+                    oldLocationObject.DataObject.RemoveContents(this.DbRef);
+                    await oldLocationObject.DataObject.SaveAsync(redis);
                 }
 
-                newParentObject.DataObject.AddContents(this.DbRef);
-                await newParentObject.DataObject.SaveAsync(redis);
+                newLocationObject.DataObject.AddContents(this.DbRef);
+                await newLocationObject.DataObject.SaveAsync(redis);
 
                 this.Location = newLocation;
                 await this.SaveAsync(redis);
+
+                await CacheManager.UpdateAsync(newLocation, redis, newLocationObject.DataObject);
             }
         }
 
@@ -282,7 +302,12 @@ namespace Mudpie.Server.Data
         /// </summary>
         /// <param name="redis">The client proxy to access the underlying data store</param>
         /// <returns>A task object used to await this method for completion</returns>
-        [NotNull]
-        public abstract Task SaveAsync([NotNull] ICacheClient redis);
+        public abstract Task SaveAsync(ICacheClient redis);
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"{this.Name}({this.DbRef})";
+        }
     }
 }

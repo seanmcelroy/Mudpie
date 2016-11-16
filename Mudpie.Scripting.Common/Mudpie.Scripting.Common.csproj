@@ -60,6 +60,7 @@
     <Compile Include="ContextGlobals.cs" />
     <Compile Include="DbRef.cs" />
     <Compile Include="DbRefJsonConverter.cs" />
+    <Compile Include="IDatabaseLibrary.cs" />
     <Compile Include="IObjectBase.cs" />
     <Compile Include="PlayerInputStreamReader.cs" />
     <Compile Include="PlayerInputStreamWriter.cs" />

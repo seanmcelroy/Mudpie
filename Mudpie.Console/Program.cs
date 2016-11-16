@@ -42,14 +42,12 @@
             Debug.Assert(mudpieConfigurationSection != null, "mudpieConfigurationSection != null");
             Logger.InfoFormat("Loaded configuration from {0}", config.FilePath);
 
-            var godPlayer = new Player
+            var godPlayer = new Player("God", 2, "god")
                                 {
                                     Aliases = new[] { "Jehovah", "Yahweh", "Allah" },
                                     DbRef = 2,
                                     Description = "The Creator",
                                     InternalId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2).ToString("N"),
-                                    Name = "God",
-                                    Username = "god",
                                     Location = 1
                                 };
 
@@ -67,11 +65,10 @@
                             await redis.Database.StringSetAsync("mudpie::dbref:counter", 4);
 
                             // VOID
-                            var voidRoom = new Room
+                            var voidRoom = new Room("The Void", godPlayer.DbRef)
                                                {
                                                    DbRef = 1,
                                                    InternalId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1).ToString("N"),
-                                                   Name = "The Void",
                                                    Description = "An infinite emptiness of nothing."
                                                };
                             await voidRoom.SaveAsync(redis);
@@ -84,27 +81,51 @@
                             await godPlayer.SaveAsync(redis);
 
                             // LOOK
-                            var lookProgramSource = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, "look.mcs");
-                            Debug.Assert(lookProgramSource != null, "lookProgramSource != null");
-                            var lookProgram = new Mudpie.Server.Data.Program("look.msc", lookProgramSource)
-                                                  {
-                                                      DbRef = 3,
-                                                      Description = "A program used to observe your surroundings",
-                                                      Name = "look.msc",
-                                                      Interactive = false
-                                                  };
-                            await lookProgram.SaveAsync(redis);
+                            {
+                                var lookProgramSource = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, "look.mcs");
+                                Debug.Assert(lookProgramSource != null, "lookProgramSource != null");
+                                var lookProgram = new Mudpie.Server.Data.Program("look.msc", godPlayer.DbRef, lookProgramSource)
+                                                      {
+                                                          DbRef = 3,
+                                                          Description = "A program used to observe your surroundings",
+                                                          Interactive = false
+                                                      };
+                                await lookProgram.SaveAsync(redis);
 
-                            // LINK-LOOK-ROOM
-                            var linkLook = new Link
-                                               {
-                                                    DbRef = 4,
-                                                   Name = "look",
-                                                   Aliases = new[] { "l" },
-                                                   Location = voidRoom.DbRef,
-                                                   Target = 3
-                                               };
-                            await linkLook.MoveAsync(voidRoom.DbRef, redis);
+                                // LINK-LOOK-ROOM
+                                var linkLook = new Link("look", godPlayer.DbRef)
+                                                   {
+                                                       DbRef = 4,
+                                                       Aliases = new[] { "l" },
+                                                       Target = 3
+                                                   };
+                                await linkLook.MoveAsync(voidRoom.DbRef, redis);
+                                var void1 = ObjectBase.GetAsync(redis, voidRoom.DbRef).Result;
+                                Debug.Assert(void1.Contents.Length == 1, "After reparenting, VOID should have 1 content");
+                            }
+
+                            // @NAME
+                            {
+                                var nameProgramSource = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, "@name.mcs");
+                                Debug.Assert(nameProgramSource != null, "nameProgramSource != null");
+                                var nameProgram = new Mudpie.Server.Data.Program("@name.mcs", godPlayer.DbRef, nameProgramSource)
+                                                      {
+                                                          DbRef = 5,
+                                                          Description = "A program used to rename objects",
+                                                          Interactive = false
+                                                      };
+                                await nameProgram.SaveAsync(redis);
+
+                                // LINK-NAME-ROOM
+                                var linkName = new Link("@name", godPlayer.DbRef)
+                                                   {
+                                                       DbRef = 6,
+                                                       Target = 5
+                                                   };
+                                await linkName.MoveAsync(voidRoom.DbRef, redis);
+                                var void2 = ObjectBase.GetAsync(redis, voidRoom.DbRef).Result;
+                                Debug.Assert(void2.Contents.Length == 2, "After reparenting, VOID should have 2 contents");
+                            }
                         }
                         else
                         {

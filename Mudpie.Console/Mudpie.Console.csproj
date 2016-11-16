@@ -193,6 +193,7 @@
     <Compile Include="Scripting\ContextErrorNumber.cs" />
     <Compile Include="Scripting\ContextState.cs" />
     <Compile Include="Scripting\Engine.cs" />
+    <Compile Include="Scripting\Libraries\DatabaseLibrary.cs" />
     <Compile Include="Scripting\SourceUtility.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -201,6 +202,7 @@
     </None>
     <None Include="packages.config" />
     <None Include="Scripting\Builtin\test2.prog" />
+    <None Include="Scripting\Builtin\Unauthenticated\%40name.msc" />
     <None Include="Scripting\Builtin\Unauthenticated\help.mtxt" />
     <None Include="Scripting\Builtin\Unauthenticated\look.mcs" />
     <None Include="Scripting\Builtin\Unauthenticated\marco.mcs" />

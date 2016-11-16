@@ -1,0 +1,4 @@
+﻿if (DirectObject == null) { return -1; }
+PlayerOutput.WriteLine($"Renaming {DirectObject} to '{IndirectObjectString}'");
+DatabaseLibrary.Rename(DirectObject.DbRef, IndirectObjectString);
+return 0;

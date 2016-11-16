@@ -24,6 +24,24 @@ namespace Mudpie.Server.Data
     public class Link : ObjectBase
     {
         /// <summary>
+        /// Initializes a new instance of the <see cref="Link"/> class.
+        /// </summary>
+        /// <param name="linkName">The name of the link</param>
+        /// <param name="owner">The reference of the owner of the object</param>
+        public Link([NotNull] string linkName, DbRef owner)
+            : base(linkName, owner)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Link"/> class.
+        /// </summary>
+        [Obsolete("Only made public for a generic type parameter requirement", false)]
+        public Link()
+        {
+        }
+
+        /// <summary>
         /// Gets or sets the target of the link
         /// </summary>
         public DbRef Target { get; set; }

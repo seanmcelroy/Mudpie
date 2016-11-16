@@ -34,7 +34,10 @@ namespace Mudpie.Scripting.Common
         /// <param name="playerOutput">
         /// A text writer that can be used to send information back to the triggering object.
         /// </param>
-        public ContextGlobals([NotNull] IObjectBase thisObject, [CanBeNull] IObjectBase caller, [NotNull] TextWriter playerOutput)
+        /// <param name="databaseLibrary">
+        /// A library class that exposes functions to the script that allow it to modify objects in the database
+        /// </param>
+        public ContextGlobals([NotNull] IObjectBase thisObject, [CanBeNull] IObjectBase caller, [NotNull] TextWriter playerOutput, [NotNull] IDatabaseLibrary databaseLibrary)
         {
             if (thisObject == null)
             {
@@ -51,29 +54,35 @@ namespace Mudpie.Scripting.Common
                 throw new ArgumentNullException(nameof(playerOutput));
             }
 
+            if (databaseLibrary == null)
+            {
+                throw new ArgumentNullException(nameof(databaseLibrary));
+            }
+
             this.This = thisObject;
             this.Caller = caller;
             this.PlayerInput = new PlayerInputStreamReader(this.PlayerInputStreamInternal);
             this.PlayerInputWriterInternal = new PlayerInputStreamWriter(this.PlayerInputWriterStreamInternal, this.PlayerInput);
             this.PlayerOutput = playerOutput;
+            this.DatabaseLibrary = databaseLibrary;
         }
 
         /// <summary>
         /// Gets or sets the player who typed the command
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public IObjectBase Player { get; set; }
 
         /// <summary>
         /// Gets or sets the location of the triggering object
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public IObjectBase PlayerLocation { get; set; }
 
         /// <summary>
         /// Gets or sets the object on which the verb for the command was found
         /// </summary>
-        [NotNull]
+        [NotNull, PublicAPI]
         public IObjectBase This { get; set; }
 
         /// <summary>
@@ -81,61 +90,61 @@ namespace Mudpie.Scripting.Common
         /// verb was found. For the first verb called for a given command, 'caller' has the
         /// same value as <see cref="Player"/>.
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public IObjectBase Caller { get; private set; }
 
         /// <summary>
         /// Gets or sets the verb; a string, the name by which the currently-running verb was identified.
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public string Verb { get; set; }
 
         /// <summary>
         /// Gets or sets a string, everything after the first word of the command
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public string ArgString { get; set; }
 
         /// <summary>
         /// Gets or sets a list of strings, the words in <see cref="ArgString"/>
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public string[] Args { get; set; }
 
         /// <summary>
         /// Gets or sets a string, the direct object string found during parsing
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public string DirectObjectString { get; set; }
 
         /// <summary>
         /// Gets or sets an object, the direct object value found during matching
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public IObjectBase DirectObject { get; set; }
 
         /// <summary>
         /// Gets or sets a string, the prepositional phrase string found during parsing
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public string PrepositionString { get; set; }
 
         /// <summary>
         /// Gets or sets a string, the indirect object string found during parsing
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public string IndirectObjectString { get; set; }
 
         /// <summary>
         /// Gets or sets an object, the indirect object value found during matching
         /// </summary>
-        [CanBeNull]
+        [CanBeNull, PublicAPI]
         public IObjectBase IndirectObject { get; set; }
         
         /// <summary>
         /// Gets a text writer that can be used to send information back to the triggering object.
         /// </summary>
-        [NotNull]
+        [NotNull, PublicAPI]
         public TextWriter PlayerOutput { get; private set; }
 
         /// <summary>
@@ -147,8 +156,14 @@ namespace Mudpie.Scripting.Common
         /// <summary>
         /// Gets a <see cref="StreamReader"/> that can be used by the script to retrieve text from the player waiting for it to read in
         /// </summary>
-        [NotNull]
+        [NotNull, PublicAPI]
         public PlayerInputStreamReader PlayerInput { get; private set; }
+
+        /// <summary>
+        /// Gets an instance of a library class that exposes functions to the script that allow it to modify objects in the database
+        /// </summary>
+        [NotNull, PublicAPI]
+        public IDatabaseLibrary DatabaseLibrary { get; private set; }
 
         /// <summary>
         /// Gets a memory stream that stores text from the player that is waiting for transfer to the <see cref="PlayerInputStreamInternal"/> script-attached stream

@@ -501,7 +501,7 @@ namespace Mudpie.Console.Network
                     return false;
                 }
 
-                if (target is Mudpie.Server.Data.Program)
+                if (target is Mudpie.Server.Data.Program && this.Identity != null) // NOTE: This means no unauthenticated programs can run.. but we want 'caller' not to be null
                 {
                     // Spawn the program as an asychronous task (no await) so input can still be processed on this connection
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed

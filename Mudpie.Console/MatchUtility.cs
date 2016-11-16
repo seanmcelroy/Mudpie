@@ -35,6 +35,7 @@ namespace Mudpie.Console
         /// <param name="directObjectRef">The <see cref="DbRef"/> of the matched direct object</param>
         /// <param name="indirectObjectRef">The <see cref="DbRef"/> of the matched indirect object</param>
         /// <returns>The <see cref="DbRef"/> of the action/link, if it could be located</returns>
+        [NotNull, Pure, ItemNotNull]
         public static async Task<Tuple<DbRef, ObjectBase>> MatchVerbAsync([CanBeNull] Player player, [NotNull] ICacheClient redis, [NotNull] string text, DbRef directObjectRef, DbRef indirectObjectRef)
         {
             var matched = await MatchTypeAsync<Link>(player, redis, text);
@@ -110,6 +111,7 @@ namespace Mudpie.Console
         /// <param name="redis">The client proxy to the underlying data store</param>
         /// <param name="text">The object name the player entered</param>
         /// <returns>The <see cref="DbRef"/> of the object and the <see cref="ObjectBase"/> representation of it, if it could be located</returns>
+        [NotNull, Pure, ItemNotNull]
         public static async Task<Tuple<DbRef, ObjectBase>> MatchObjectAsync([CanBeNull] Player player, [NotNull] ICacheClient redis, [CanBeNull] string text)
         {
             // Did they provide a DbRef?
