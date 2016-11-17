@@ -25,7 +25,7 @@ namespace Mudpie.Scripting.Common
         /// <inheritdoc />
         public override void WriteJson(JsonWriter writer, object value, [NotNull] JsonSerializer serializer)
         {
-            var dbref = (DbRef?)value ?? DbRef.NOTHING;
+            var dbref = (DbRef?)value ?? DbRef.Nothing;
             serializer.Serialize(writer, dbref.ToString());
         }
 

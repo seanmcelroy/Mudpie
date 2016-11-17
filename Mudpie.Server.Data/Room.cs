@@ -10,6 +10,7 @@
 namespace Mudpie.Server.Data
 {
     using System;
+    using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
@@ -46,12 +47,13 @@ namespace Mudpie.Server.Data
         /// </summary>
         /// <param name="redis">The client proxy to access the underlying data store</param>
         /// <param name="roomRef">The <see cref="DbRef"/> of the link to retrieve from the data store</param>
+        /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>The matching <see cref="Room"/>, if it exists for the supplied <paramref name="roomRef"/>; otherwise, null.</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Room> GetAsync([NotNull] ICacheClient redis, DbRef roomRef) => (Room)(await CacheManager.LookupOrRetrieveAsync(roomRef, redis, async d => await redis.GetAsync<Room>($"mudpie::room:{d}"))).DataObject;
+        public static new async Task<Room> GetAsync([NotNull] ICacheClient redis, DbRef roomRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync(roomRef, redis, async (d, token) => await redis.GetAsync<Room>($"mudpie::room:{d}"), cancellationToken))?.DataObject;
 
         /// <inheritdoc />
-        public override async Task SaveAsync(ICacheClient redis)
+        public override async Task SaveAsync(ICacheClient redis, CancellationToken cancellationToken)
         {
             if (redis == null)
             {
@@ -62,7 +64,7 @@ namespace Mudpie.Server.Data
                 Task.WhenAll(
                     redis.SetAddAsync<string>("mudpie::rooms", this.DbRef),
                     redis.AddAsync($"mudpie::room:{this.DbRef}", this),
-                    CacheManager.UpdateAsync(this.DbRef, redis, this));
+                    CacheManager.UpdateAsync(this.DbRef, redis, this, cancellationToken));
         }
     }
 }

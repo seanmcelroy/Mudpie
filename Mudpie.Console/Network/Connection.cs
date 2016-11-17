@@ -1,6 +1,6 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="Connection.cs" company="Sean McElroy">
-//   Released under the terms of the MIT License//   
+//   Released under the terms of the MIT License
 // </copyright>
 // <summary>
 //   A persistent, accepted connection from a client computer to the network server process
@@ -44,7 +44,7 @@ namespace Mudpie.Console.Network
         /// <summary>
         /// A command-indexed dictionary with function pointers to support client command
         /// </summary>
-        private static readonly Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>> BuiltInCommandDirectory;
+        private static readonly Dictionary<string, Func<Connection, string, CancellationToken, Task<CommandProcessingResult>>> BuiltInCommandDirectory;
 
         /// <summary>
         /// The logging utility instance to use to log events from this class
@@ -99,9 +99,9 @@ namespace Mudpie.Console.Network
         /// </summary>
         static Connection()
         {
-            BuiltInCommandDirectory = new Dictionary<string, Func<Connection, string, Task<CommandProcessingResult>>>
+            BuiltInCommandDirectory = new Dictionary<string, Func<Connection, string, CancellationToken, Task<CommandProcessingResult>>>
                 {
-                    { "CONNECT", async (c, data) => await c.ConnectAsync(data) }
+                    { "CONNECT", async (c, data, token) => await c.ConnectAsync(data, token) }
                 };
         }
 
@@ -203,9 +203,9 @@ namespace Mudpie.Console.Network
         /// Processing loop to handle incoming bytes on a connection
         /// </summary>
         /// <param name="cancellationToken">A cancellation token used to abort the processing loop</param>
-        public async void Process(CancellationToken cancellationToken = default(CancellationToken))
+        public async void Process(CancellationToken cancellationToken)
         {
-            await this.SendAsync("200 Service available, posting allowed\r\n");
+            await this.SendAsync("200 Service available, posting allowed\r\n", cancellationToken);
 
             Debug.Assert(this.stream != null, "The stream was 'null', but it should not have been because the connection was accepted and processing is beginning.");
 
@@ -322,12 +322,13 @@ namespace Mudpie.Console.Network
         /// Sends the formatted data to the client
         /// </summary>
         /// <param name="format">The data, or format string for data, to send to the client</param>
+        /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <param name="args">The argument applied as a format string to <paramref name="format"/> to create the data to send to the client</param>
         /// <returns>A value indicating whether or not the transmission was successful</returns>
         [StringFormatMethod("format"), NotNull]
-        internal async Task<bool> SendAsync([NotNull] string format, [NotNull] params object[] args)
+        internal async Task<bool> SendAsync([NotNull] string format, CancellationToken cancellationToken, [NotNull] params object[] args)
         {
-            return await this.SendInternalAsync(string.Format(CultureInfo.InvariantCulture, format, args));
+            return await this.SendInternalAsync(string.Format(CultureInfo.InvariantCulture, format, args), cancellationToken);
         }
 
         /// <summary>
@@ -338,7 +339,7 @@ namespace Mudpie.Console.Network
         /// <returns>A value indicating whether or not the parent message loop should quit</returns>
         private async Task<bool> ProcessMessageAsync(
             string content,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken)
         {
             if (BuiltInCommandDirectory.ContainsKey(content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant()))
             {
@@ -357,11 +358,11 @@ namespace Mudpie.Console.Network
                     var result =
                         await
                             BuiltInCommandDirectory[content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant()]
-                                .Invoke(this, content);
+                                .Invoke(this, content, cancellationToken);
 
                     if (!result.IsHandled)
                     {
-                        await this.SendAsync("500 Unknown command\r\n");
+                        await this.SendAsync("500 Unknown command\r\n", cancellationToken);
                     }
                     else if (result.MessageHandler != null)
                     {
@@ -383,7 +384,7 @@ namespace Mudpie.Console.Network
                 var wordMatches = Regex.Matches(content, @"([^\s]*(""[^""]*"")[^\s]*)|([^\s""]+)");
                 if (wordMatches.Count < 1)
                 {
-                    await this.SendAsync("What?\r\n");
+                    await this.SendAsync("What?\r\n", cancellationToken);
                     return false;
                 }
 
@@ -451,57 +452,61 @@ namespace Mudpie.Console.Network
 
                 #region Matching
                 var directObjectReferenceAndObject = directObject == null
-                                                ? new Tuple<DbRef, ObjectBase>(DbRef.FAILED_MATCH, null)
+                                                ? new Tuple<DbRef, ObjectBase>(DbRef.FailedMatch, null)
                                                 : await
                                                       MatchUtility.MatchObjectAsync(
                                                           this.Identity,
                                                           this.server.ScriptingEngine.Redis,
-                                                          directObject);
+                                                          directObject,
+                                                          cancellationToken);
                 Logger.Verbose($"{directObject} => REF: {directObjectReferenceAndObject.Item1}");
                 var indirectObjectReferenceAndObject = indirectObject == null
-                                                  ? new Tuple<DbRef, ObjectBase>(DbRef.FAILED_MATCH, null)
+                                                  ? new Tuple<DbRef, ObjectBase>(DbRef.FailedMatch, null)
                                                   : await
                                                         MatchUtility.MatchObjectAsync(
                                                             this.Identity,
                                                             this.server.ScriptingEngine.Redis,
-                                                            indirectObject);
+                                                            indirectObject,
+                                                            cancellationToken);
                 Logger.Verbose($"{indirectObject} => REF: {indirectObjectReferenceAndObject.Item1}");
                 var verbReferenceAndObject = verb == null
-                                        ? new Tuple<DbRef, ObjectBase>(DbRef.NOTHING, null)
+                                        ? new Tuple<DbRef, ObjectBase>(DbRef.Nothing, null)
                                         : await
                                               MatchUtility.MatchVerbAsync(
                                                   this.Identity,
                                                   this.server.ScriptingEngine.Redis,
                                                   verb,
                                                   directObjectReferenceAndObject.Item1,
-                                                  indirectObjectReferenceAndObject.Item1);
+                                                  indirectObjectReferenceAndObject.Item1,
+                                                  cancellationToken);
                 Logger.Verbose($"{verb} => REF: {verbReferenceAndObject.Item1}");
 
                 #endregion
 
-                if (verbReferenceAndObject.Item1.Equals(DbRef.AMBIGUOUS))
+                if (verbReferenceAndObject.Item1.Equals(DbRef.Ambiguous))
                 {
-                    await this.SendAsync("Which one?\r\n");
+                    await this.SendAsync("Which one?\r\n", cancellationToken);
                     return false;
                 }
 
-                if (verbReferenceAndObject.Item1.Equals(DbRef.FAILED_MATCH))
+                if (verbReferenceAndObject.Item1.Equals(DbRef.FailedMatch))
                 {
-                    await this.SendAsync("Er?\r\n");
+                    await this.SendAsync("Er?\r\n", cancellationToken);
                     return false;
                 }
 
                 var link = verbReferenceAndObject.Item2 as Link;
                 Debug.Assert(link != null, "link != null");
 
-                var target = await ObjectBase.GetAsync(this.server.ScriptingEngine.Redis, link.Target);
+                var target = await ObjectBase.GetAsync(this.server.ScriptingEngine.Redis, link.Target, cancellationToken);
                 if (target == null)
                 {
-                    await this.SendAsync("You peer closer and notice a rip in the space-time continuum...\r\n");
+                    await this.SendAsync("You peer closer and notice a rip in the space-time continuum...\r\n", cancellationToken);
                     return false;
                 }
 
-                if (target is Mudpie.Server.Data.Program && this.Identity != null) // NOTE: This means no unauthenticated programs can run.. but we want 'caller' not to be null
+                // NOTE: This means no unauthenticated programs can run.. but we want 'caller' not to be null
+                if (target is Mudpie.Server.Data.Program && this.Identity != null)
                 {
                     // Spawn the program as an asychronous task (no await) so input can still be processed on this connection
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
@@ -527,35 +532,34 @@ namespace Mudpie.Console.Network
                                 if (context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound
                                     || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
                                 {
-                                    await this.SendAsync("Huh?\r\n\r\n");
+                                    await this.SendAsync("Huh?\r\n\r\n", cancellationToken);
                                 }
                                 else if (context.ErrorNumber == Scripting.ContextErrorNumber.AuthenticationRequired)
                                 {
-                                    await this.SendAsync("You must be logged in to use that command.\r\n\r\n");
+                                    await this.SendAsync("You must be logged in to use that command.\r\n\r\n", cancellationToken);
                                 }
                                 else
                                 {
                                     switch (context.State)
                                     {
                                         case Scripting.ContextState.Aborted:
-                                            await this.SendAsync("Aborted.\r\n");
+                                            await this.SendAsync("Aborted.\r\n", cancellationToken);
                                             break;
                                         case Scripting.ContextState.Errored:
-                                            await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n");
+                                            await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n", cancellationToken);
                                             break;
                                         case Scripting.ContextState.Killed:
-                                            await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n");
+                                            await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n", cancellationToken);
                                             break;
                                         case Scripting.ContextState.Loaded:
                                             await
-                                                this.SendAsync(
-                                                    $"STUCK: {context.ProgramName} loaded but not completed.\r\n");
+                                                this.SendAsync($"STUCK: {context.ProgramName} loaded but not completed.\r\n", cancellationToken);
                                             break;
                                         case Scripting.ContextState.Paused:
-                                            await this.SendAsync($"Paused: {context.ProgramName}.\r\n");
+                                            await this.SendAsync($"Paused: {context.ProgramName}.\r\n", cancellationToken);
                                             break;
                                         case Scripting.ContextState.Running:
-                                            await this.SendAsync($"Running... {context.ProgramName}.\r\n");
+                                            await this.SendAsync($"Running... {context.ProgramName}.\r\n", cancellationToken);
                                             break;
                                         case Scripting.ContextState.Completed:
                                             Logger.Verbose(
@@ -577,7 +581,8 @@ namespace Mudpie.Console.Network
         /// </summary>
         /// <param name="data">The data to send to the client</param>
         /// <returns>A value indicating whether or not the transmission was successful</returns>
-        private async Task<bool> SendInternalAsync([NotNull] string data)
+        /// <param name="cancellationToken">A cancellation token used to abort the processing loop</param>
+        private async Task<bool> SendInternalAsync([NotNull] string data, CancellationToken cancellationToken)
         {
             // Convert the string data to byte data using ASCII encoding.
             var byteData = Encoding.UTF8.GetBytes(data);
@@ -585,7 +590,7 @@ namespace Mudpie.Console.Network
             try
             {
                 // Begin sending the data to the remote device.
-                await this.stream.WriteAsync(byteData, 0, byteData.Length);
+                await this.stream.WriteAsync(byteData, 0, byteData.Length, cancellationToken);
                 if (this.ShowBytes && this.ShowData)
                 {
                     Logger.TraceFormat(
@@ -669,7 +674,8 @@ namespace Mudpie.Console.Network
         {
             if (this.client.Connected)
             {
-                await this.SendAsync("GOODBYE!\r\n");
+                var cts = new CancellationTokenSource(5000); // 5 seconds
+                await this.SendAsync("GOODBYE!\r\n", cts.Token);
                 this.client.Client?.Shutdown(SocketShutdown.Both);
                 this.client.Close();
                 this.client.Dispose();
@@ -685,44 +691,43 @@ namespace Mudpie.Console.Network
         /// player record for a username and a password
         /// </summary>
         /// <param name="data">The full data line received from the client</param>
-        /// <returns>
-        /// A command processing result specifying the command is handled.
-        /// </returns>
+        /// <param name="cancellationToken">A cancellation token used to abort the processing loop</param>
+        /// <returns>A command processing result specifying the command is handled.</returns>
         [NotNull, ItemNotNull]
-        private async Task<CommandProcessingResult> ConnectAsync([NotNull] string data)
+        private async Task<CommandProcessingResult> ConnectAsync([NotNull] string data, CancellationToken cancellationToken)
         {
             var match = Regex.Match(data, @"connect\s+(?<username>[^\s]+)\s(?<password>[^\r\n]+)", RegexOptions.IgnoreCase);
             if (!match.Success)
             {
-                await this.SendAsync("Either that player does not exist, or has a different password. #001\r\n");
+                await this.SendAsync("Either that player does not exist, or has a different password. #001\r\n", cancellationToken);
                 return new CommandProcessingResult(true);
             }
 
             var username = match.Groups["username"]?.Value;
             if (string.IsNullOrWhiteSpace(username))
             {
-                await this.SendAsync("Either that player does not exist, or has a different password. #002\r\n");
+                await this.SendAsync("Either that player does not exist, or has a different password. #002\r\n", cancellationToken);
                 return new CommandProcessingResult(true);
             }
 
             var playerRef = (DbRef)await this.server.ScriptingEngine.Redis.HashGetAsync<string>("mudpie::usernames", username.ToLowerInvariant());
-            if (DbRef.NOTHING.Equals(playerRef))
+            if (DbRef.Nothing.Equals(playerRef))
             {
-                await this.SendAsync("Either that player does not exist, or has a different password. #003\r\n");
+                await this.SendAsync("Either that player does not exist, or has a different password. #003\r\n", cancellationToken);
                 return new CommandProcessingResult(true);
             }
 
-            var player = await Player.GetAsync(this.server.ScriptingEngine.Redis, playerRef);
+            var player = await Player.GetAsync(this.server.ScriptingEngine.Redis, playerRef, cancellationToken);
             if (player == null)
             {
-                await this.SendAsync("Either that player does not exist, or has a different password. #004\r\n");
+                await this.SendAsync("Either that player does not exist, or has a different password. #004\r\n", cancellationToken);
                 return new CommandProcessingResult(true);
             }
 
             var password = match.Groups["password"]?.Value;
             if (password == null)
             {
-                await this.SendAsync("Either that player does not exist, or has a different password. #005\r\n");
+                await this.SendAsync("Either that player does not exist, or has a different password. #005\r\n", cancellationToken);
                 return new CommandProcessingResult(true);
             }
 
@@ -735,15 +740,15 @@ namespace Mudpie.Console.Network
             var passwordMatch = player.VerifyPassword(secureAttempt);
             if (!passwordMatch)
             {
-                await this.SendAsync("Either that player does not exist, or has a different password. #006\r\n");
+                await this.SendAsync("Either that player does not exist, or has a different password. #006\r\n", cancellationToken);
                 return new CommandProcessingResult(true);
             }
 
             this.Identity = player;
             this.Identity.LastLogin = DateTime.UtcNow;
-            await this.Identity.SaveAsync(this.server.ScriptingEngine.Redis);
+            await this.Identity.SaveAsync(this.server.ScriptingEngine.Redis, cancellationToken);
 
-            await this.SendAsync("Greetings, Professor Faulkin\r\n");
+            await this.SendAsync("Greetings, Professor Faulkin\r\n", cancellationToken);
             return new CommandProcessingResult(true);
         }
 

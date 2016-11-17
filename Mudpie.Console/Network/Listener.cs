@@ -50,7 +50,7 @@ namespace Mudpie.Console.Network
         public PortClass PortType { get; set; }
 
         [NotNull]
-        public async Task StartAcceptingAsync(CancellationToken cancellationToken = default(CancellationToken))
+        public async Task StartAcceptingAsync(CancellationToken cancellationToken)
         {
             // Establish the local endpoint for the socket.
             var localEndPoint = new IPEndPoint(IPAddress.Any, ((IPEndPoint)this.LocalEndpoint).Port);

@@ -17,11 +17,9 @@ namespace Mudpie.Console.Scripting
     using JetBrains.Annotations;
 
     using Mudpie.Scripting.Common;
-    using Mudpie.Server.Data;
+    using Server.Data;
 
     using StackExchange.Redis.Extensions.Core;
-
-    using Program = Mudpie.Console.Program;
 
     /// <summary>
     /// The scripting engine is the master factory of execution contexts for asynchronously running programs in the MUD
@@ -29,7 +27,7 @@ namespace Mudpie.Console.Scripting
     internal class Engine
     {
         /// <summary>
-        /// The underlying Redis data store client
+        /// The underlying data store client
         /// </summary>
         [NotNull]
         private readonly ICacheClient redis;
@@ -47,7 +45,25 @@ namespace Mudpie.Console.Scripting
         /// Gets the client proxy to the data store instance used by the engine
         /// </summary>
         internal ICacheClient Redis => this.redis;
-        
+
+        /// <summary>
+        /// Executes the script of a program
+        /// </summary>
+        /// <typeparam name="T">The return type of the program</typeparam>
+        /// <param name="programRef">The <see cref="DbRef"/> of the program to execute</param>
+        /// <param name="connection">The connection on which the request to run the command came, if it was triggered by an interactive session</param>
+        /// <param name="thisObject">The object on which the verb for the command was found</param>
+        /// <param name="caller">The object on which the verb that called the currently-running verb</param>
+        /// <param name="verb">The verb; a string, the name by which the currently-running verb was identified.</param>
+        /// <param name="argString">A string, everything after the first word of the command</param>
+        /// <param name="args">A list of strings, the words in <see cref="argString"/></param>
+        /// <param name="directObjectString">A string, the direct object string found during parsing</param>
+        /// <param name="directObject">An object, the direct object value found during matching</param>
+        /// <param name="prepositionString">A string, the prepositional phrase string found during parsing</param>
+        /// <param name="indirectObjectString">A string, the indirect object string found during parsing</param>
+        /// <param name="indirectObject">An object, the indirect object value found during matching</param>
+        /// <param name="cancellationToken">A cancellation token used to abort the method</param>
+        /// <returns>A context object that contains information about the execution of the script, including error conditions or return value</returns>
         [NotNull, ItemNotNull]
         public async Task<Context<T>> RunProgramAsync<T>(
             DbRef programRef,
@@ -64,12 +80,12 @@ namespace Mudpie.Console.Scripting
             [CanBeNull] ObjectBase indirectObject,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (programRef.Equals(DbRef.NOTHING))
+            if (programRef.Equals(DbRef.Nothing))
             {
                 return Context<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No program was supplied");
             }
 
-            var program = await Server.Data.Program.GetAsync(this.redis, programRef);
+            var program = await Program.GetAsync(this.redis, programRef, cancellationToken);
             if (program == null)
             {
                 return Context<T>.Error(
@@ -90,6 +106,7 @@ namespace Mudpie.Console.Scripting
             using (var outputStreamWriter = new StreamWriter(outputStream))
             using (var outputCancellationTokenSource = new CancellationTokenSource())
             {
+                Debug.Assert(outputStream != null, "outputStream != null");
                 Debug.Assert(outputStreamWriter != null, "outputStreamWriter != null");
 
                 var scriptGlobals = new ContextGlobals(thisObject, caller, outputStreamWriter, new Libraries.DatabaseLibrary(caller.DbRef, this.redis))
@@ -101,7 +118,7 @@ namespace Mudpie.Console.Scripting
                     IndirectObject = indirectObject,
                     IndirectObjectString = indirectObjectString,
                     Player = connection?.Identity,
-                    PlayerLocation = connection?.Identity == null ? null : (await CacheManager.LookupOrRetrieveAsync(connection.Identity.Location, this.Redis, async d => await Room.GetAsync(this.Redis, d)))?.DataObject,
+                    PlayerLocation = connection?.Identity == null ? null : (await CacheManager.LookupOrRetrieveAsync(connection.Identity.Location, this.Redis, async (d, token) => await Room.GetAsync(this.Redis, d, token), cancellationToken))?.DataObject,
                     PrepositionString = prepositionString,
                     Verb = verb
                 };
@@ -111,44 +128,52 @@ namespace Mudpie.Console.Scripting
                 // OUTPUT
                 var appendOutputTask = new Task(
                     async () =>
-                {
-                    while (context.State == ContextState.Loaded || context.State == ContextState.Running)
-                    {
-                        if (context.State == ContextState.Running)
                         {
-                            // Input
-                            await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
-
-                            // Output
-                            await scriptGlobals.PlayerOutput.FlushAsync();
-                            outputStream.Position = outputLastPositionRead;
-                            var outputString = await outputStreamReader.ReadToEndAsync();
-                            if (!string.IsNullOrEmpty(outputString))
-                                context.AppendFeedback(outputString);
-                            outputLastPositionRead = outputStream.Position;
-
-                            // Send output to trigger, if capable of receiving.
-                            while (connection != null && context.Output.Count > 0)
+                            while (context.State == ContextState.Loaded || context.State == ContextState.Running)
                             {
-                                var nextOutput = context.Output.Dequeue();
-                                if (nextOutput != null)
-                                    await connection.SendAsync(nextOutput);
-                            }
-                        }
+                                if (context.State == ContextState.Running)
+                                {
+                                    // Input
+                                    await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
 
-                        Thread.Sleep(100);
-                    }
-                }, 
+                                    // Output
+                                    await scriptGlobals.PlayerOutput.FlushAsync();
+                                    outputStream.Position = Interlocked.Read(ref outputLastPositionRead);
+                                    var outputString = await outputStreamReader.ReadToEndAsync();
+                                    if (!string.IsNullOrEmpty(outputString))
+                                    {
+                                        context.AppendFeedback(outputString);
+                                    }
+
+                                    Interlocked.Exchange(ref outputLastPositionRead, outputStream.Position);
+
+                                    // Send output to trigger, if capable of receiving.
+                                    while (connection != null && context.Output.Count > 0)
+                                    {
+                                        var nextOutput = context.Output.Dequeue();
+                                        if (nextOutput != null)
+                                        {
+                                            await connection.SendAsync(nextOutput, cancellationToken);
+                                        }
+                                    }
+                                }
+
+                                Thread.Sleep(100);
+                            }
+                        }, 
                 outputCancellationTokenSource.Token);
                 appendOutputTask.Start();
 
                 // INPUT
                 if (program.Interactive)
-                    connection?.RedirectInputToProgram(async input =>
-                        {
-                            await scriptGlobals.PlayerInputWriterInternal.WriteAsync(input);
-                            await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
-                        });
+                {
+                    connection?.RedirectInputToProgram(
+                        async input =>
+                            {
+                                await scriptGlobals.PlayerInputWriterInternal.WriteAsync(input);
+                                await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
+                            });
+                }
 
                 try
                 {
@@ -168,24 +193,28 @@ namespace Mudpie.Console.Scripting
 
                 // Output
                 await scriptGlobals.PlayerOutput.FlushAsync();
-                outputStream.Position = outputLastPositionRead;
+                outputStream.Position = Interlocked.Read(ref outputLastPositionRead);
                 var feedbackString2 = await outputStreamReader.ReadToEndAsync();
+                Interlocked.Exchange(ref outputLastPositionRead, outputStream.Position);
                 if (!string.IsNullOrEmpty(feedbackString2))
+                {
                     context.AppendFeedback(feedbackString2);
-                outputLastPositionRead = outputStream.Position;
+                }
 
                 // Send output to trigger, if capable of receiving.
                 while (connection != null && context.Output.Count > 0)
-                    await connection.SendAsync(context.Output.Dequeue());
+                {
+                    await connection.SendAsync(context.Output.Dequeue(), cancellationToken);
+                }
             }
 
             return context;
         }
 
         /// <summary>
-        /// Checks to see whether a <see cref="Data.Program"/> with the given <paramref name="programName"/> exists in the data store
+        /// Checks to see whether a <see cref="Mudpie.Server.Data.Program"/> with the given <paramref name="programName"/> exists in the data store
         /// </summary>
-        /// <param name="programName">The name of the <see cref="Data.Program"/> to search for in the data store</param>
+        /// <param name="programName">The name of the <see cref="Mudpie.Server.Data.Program"/> to search for in the data store</param>
         /// <returns><see cref="System.Boolean.True"/> if the program with the specified <paramref name="programName"/> was found in the data store; otherwise, <see cref="System.Boolean.False"/></returns>
         [NotNull]
         public async Task<bool> ProgramExistsAsync([NotNull] string programName)
@@ -195,17 +224,21 @@ namespace Mudpie.Console.Scripting
         }
 
         [NotNull]
-        public async Task SaveProgramAsync([NotNull] Server.Data.Program program)
+        public async Task SaveProgramAsync([NotNull] Program program)
         {
             var normalizedProgramName = program.Name.ToLowerInvariant();
 
             // ReSharper disable once PossibleNullReferenceException
             if (await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}"))
+            {
                 // ReSharper disable once PossibleNullReferenceException
                 await this.redis.ReplaceAsync($"mudpie::program:{normalizedProgramName}", program);
+            }
             else
+            {
                 // ReSharper disable once PossibleNullReferenceException
                 await this.redis.AddAsync($"mudpie::program:{normalizedProgramName}", program);
+            }
 
             // ReSharper disable once PossibleNullReferenceException
             await this.redis.SetAddAsync("mudpie::programs", normalizedProgramName);

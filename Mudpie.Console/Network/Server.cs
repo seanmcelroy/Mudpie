@@ -12,6 +12,7 @@ namespace Mudpie.Console.Network
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Net;
     using System.Net.Sockets;
@@ -23,6 +24,8 @@ namespace Mudpie.Console.Network
     using JetBrains.Annotations;
 
     using log4net;
+
+    using Mudpie.Server.Data;
 
     /// <summary>
     /// The server is the holder of <see cref="Listener"/> and <see cref="Connection"/> objects used to manage network communications
@@ -52,7 +55,8 @@ namespace Mudpie.Console.Network
         /// <summary>
         /// A cancellation source that is used to cancel all asynchronous operations within the server once the <see cref="Stop"/> operation is called
         /// </summary>
-        private CancellationTokenSource cts;
+        [NotNull]
+        private CancellationTokenSource cts = new CancellationTokenSource();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Server"/> class.
@@ -103,19 +107,24 @@ namespace Mudpie.Console.Network
         /// </summary>
         [PublicAPI]
         public bool ShowData { get; set; }
-        
+
+        /// <summary>
+        /// Gets the cancellation token traced by this server
+        /// </summary>
+        public CancellationToken CancellationToken => this.cts.Token;
+
         /// <summary>
         /// Gets the scripting engine that will handle commands sent by connections to the server
         /// </summary>
         [NotNull]
-        internal Scripting.Engine ScriptingEngine { get; private set; }
+        internal Scripting.Engine ScriptingEngine { get; }
 
         /// <summary>
         /// Gets the ports over which clear-text communications are permitted
         /// </summary>
         [NotNull]
         private int[] ClearPorts { get; }
-        
+
         #region Connection and IO
         /// <summary>
         /// Starts listener threads to begin processing requests
@@ -125,12 +134,36 @@ namespace Mudpie.Console.Network
         [StorePermission(SecurityAction.Demand, EnumerateCertificates = true, OpenStore = true)]
         public void Start()
         {
-            if (this.cts != null)
+            // PRECOMPILE MAJOR PROGRAMS
+            var precompileTask = Task.Run(
+                                     async () =>
+                                         {
+                                             var voidRoom =
+                                                 await
+                                                     CacheManager.LookupOrRetrieveAsync(
+                                                         1,
+                                                         this.ScriptingEngine.Redis,
+                                                         (d, token) =>
+                                                                 Room.GetAsync(this.ScriptingEngine.Redis, d, token),
+                                                         default(CancellationToken));
+                                             Debug.Assert(voidRoom != null, "voidRoom != null");
+                                             if (voidRoom.Contents != null)
+                                             {
+                                                 foreach (var linkComposed in voidRoom.Contents.Where(c => c.DataObject.GetType() == typeof(Link)))
+                                                 {
+                                                     var target = await ObjectBase.GetAsync(this.ScriptingEngine.Redis, ((Link)linkComposed.DataObject).Target, this.CancellationToken);
+                                                     (target as Program)?.Compile();
+                                                 }
+                                             }
+                                         }, 
+                                     this.CancellationToken);
+            if (!precompileTask.Wait(60000))
             {
-                throw new InvalidOperationException("Server is already running and cannot be started a second time");
+                Logger.Warn("Unable to finish pre-compilation of programs in the Void(#000001) room in 60 seconds");
+                return;
             }
 
-            this.cts = new CancellationTokenSource();
+            // NETWORKING
             this.listeners.Clear();
             
             foreach (var clearPort in this.ClearPorts)
@@ -167,11 +200,6 @@ namespace Mudpie.Console.Network
 
         public void Stop()
         {
-            if (this.cts == null)
-            {
-                throw new InvalidOperationException("Server is already stopped");
-            }
-
             this.cts.Cancel();
 
             foreach (var listener in this.listeners)
@@ -211,7 +239,8 @@ namespace Mudpie.Console.Network
                 }
             }
 
-            this.cts = null;
+            // Reset for next run
+            this.cts = new CancellationTokenSource();
         }
 
         internal void AddConnection([NotNull] Connection connection)

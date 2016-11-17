@@ -28,7 +28,7 @@ namespace Mudpie.Scripting.Common
         /// </param>
         /// <param name="caller">
         /// The object on which the verb that called the currently-running
-        /// verb was found. For the first verb called for a given command, 'caller' has the
+        /// verb. For the first verb called for a given command, 'caller' has the
         /// same value as <see cref="Player"/>.
         /// </param>
         /// <param name="playerOutput">

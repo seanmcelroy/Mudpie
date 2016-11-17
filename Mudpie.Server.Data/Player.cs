@@ -15,11 +15,12 @@ namespace Mudpie.Server.Data
     using System.Security;
     using System.Security.Cryptography;
     using System.Text;
+    using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
-    using Mudpie.Scripting.Common;
+    using Scripting.Common;
 
     using StackExchange.Redis.Extensions.Core;
 
@@ -44,6 +45,7 @@ namespace Mudpie.Server.Data
         /// Initializes a new instance of the <see cref="Player"/> class.
         /// </summary>
         [Obsolete("Only made public for a generic type parameter requirement", false)]
+        // ReSharper disable once NotNullMemberIsNotInitialized
         public Player()
         {
         }
@@ -71,9 +73,9 @@ namespace Mudpie.Server.Data
         /// </summary>
         public DateTime? LastLogin { get; set; }
 
-        public static Player Create([NotNull] ICacheClient redis, [NotNull] string name, [NotNull] string username)
+        public static async Task<Player> CreateAsync([NotNull] ICacheClient redis, [NotNull] string name, [NotNull] string username)
         {
-            var newPlayer = Create<Player>(redis);
+            var newPlayer = await CreateAsync<Player>(redis);
             newPlayer.Name = name;
             newPlayer.Username = username;
             return newPlayer;
@@ -84,9 +86,10 @@ namespace Mudpie.Server.Data
         /// </summary>
         /// <param name="redis">The client proxy to the underlying data store</param>
         /// <param name="playerRef">The <see cref="DbRef"/> of the <see cref="Player"/> to load</param>
+        /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>The <see cref="Player"/> if found; otherwise, null</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef) => (Player)(await CacheManager.LookupOrRetrieveAsync(playerRef, redis, async d => await redis.GetAsync<Player>($"mudpie::player:{d}"))).DataObject;
+        public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync(playerRef, redis, async (d, token) => await redis.GetAsync<Player>($"mudpie::player:{d}"), cancellationToken))?.DataObject;
 
         /// <inheritdoc />
         public override bool Equals(object obj)
@@ -107,17 +110,17 @@ namespace Mudpie.Server.Data
             }
 
             // Return true if the fields match:
-            return this.InternalId == p.InternalId;
+            return this.DbRef.Equals(p.DbRef);
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return this.InternalId.GetHashCode();
+            return this.DbRef.ToString().GetHashCode();
         }
 
         /// <inheritdoc />
-        public override async Task SaveAsync(ICacheClient redis)
+        public override async Task SaveAsync(ICacheClient redis, CancellationToken cancellationToken)
         {
             if (redis == null)
             {
@@ -129,7 +132,7 @@ namespace Mudpie.Server.Data
                     redis.SetAddAsync<string>("mudpie::players", this.DbRef),
                     redis.AddAsync($"mudpie::player:{this.DbRef}", this),
                     redis.HashSetAsync("mudpie::usernames", this.Username.ToLowerInvariant(), this.DbRef),
-                    CacheManager.UpdateAsync(this.DbRef, redis, this));
+                    CacheManager.UpdateAsync(this.DbRef, redis, this, cancellationToken));
         }
 
         public void SetPassword([NotNull] SecureString password)

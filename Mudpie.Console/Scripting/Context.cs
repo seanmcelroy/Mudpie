@@ -120,9 +120,7 @@ namespace Mudpie.Console.Scripting
         }
 
         [NotNull]
-        public async Task RunAsync(
-            [CanBeNull] object globals,
-            CancellationToken cancellationToken = default(CancellationToken))
+        public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken)
         {
             if (this.program == null)
             {
@@ -133,8 +131,11 @@ namespace Mudpie.Console.Scripting
             this.State = ContextState.Running;
             try
             {
-                var state = await this.program.Compile<T>().RunAsync(globals, cancellationToken);
-                this.ReturnValue = state.ReturnValue;
+                var state = await this.program.Compile().RunAsync(globals, cancellationToken);
+                if (state.ReturnValue != null)
+                {
+                    this.ReturnValue = (T)state.ReturnValue;
+                }
                 this.State = ContextState.Completed;
             }
             catch (Exception ex)

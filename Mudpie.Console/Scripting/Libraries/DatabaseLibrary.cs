@@ -9,7 +9,7 @@
 
 namespace Mudpie.Console.Scripting.Libraries
 {
-    using System;
+    using System.Threading;
 
     using JetBrains.Annotations;
 
@@ -51,18 +51,30 @@ namespace Mudpie.Console.Scripting.Libraries
         public bool Rename(DbRef reference, [NotNull] string newName)
         {
             if (string.IsNullOrWhiteSpace(newName))
+            {
                 return false;
+            }
 
-            var target = ObjectBase.GetAsync(this.redis, reference).Result;
-            if (target == null)
+            var cts = new CancellationTokenSource(5000); // 5 seconds
+            var getAsyncTask = ObjectBase.GetAsync(this.redis, reference, cts.Token); // 5 seconds
+            if (!getAsyncTask.Wait(5000))
+            {
                 return false;
+            }
+
+            var target = getAsyncTask.Result;
+            if (target == null)
+            {
+                return false;
+            }
 
             if (!target.Owner.Equals(this.caller))
+            {
                 return false;
+            }
 
             target.Name = newName;
-            target.SaveAsync(this.redis).Wait();
-            return true;
+            return target.SaveAsync(this.redis, cts.Token).Wait(5000);
         }
     }
 }

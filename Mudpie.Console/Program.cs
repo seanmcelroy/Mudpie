@@ -47,13 +47,24 @@
                                     Aliases = new[] { "Jehovah", "Yahweh", "Allah" },
                                     DbRef = 2,
                                     Description = "The Creator",
-                                    InternalId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2).ToString("N"),
                                     Location = 1
                                 };
-
+            
             using (var redis = new StackExchangeRedisCacheClient(new NewtonsoftSerializer()))
             {
                 Debug.Assert(redis != null, "redis != null");
+                
+                // Setup scripting engine
+                var scriptingEngine = new Engine(redis);
+
+                // Setup server process
+                Debug.Assert(mudpieConfigurationSection.Ports != null, "mudpieConfigurationSection.Ports != null");
+                var server = new Server(mudpieConfigurationSection.Ports.Select(p => p.Port).ToArray(), scriptingEngine)
+                {
+                    ShowBytes = true,
+                    ShowCommands = false,
+                    ShowData = true
+                };
 
                 // Seed data
                 Task.Run(async () =>
@@ -68,17 +79,19 @@
                             var voidRoom = new Room("The Void", godPlayer.DbRef)
                                                {
                                                    DbRef = 1,
-                                                   InternalId = new Guid(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1).ToString("N"),
                                                    Description = "An infinite emptiness of nothing."
                                                };
-                            await voidRoom.SaveAsync(redis);
+                            await voidRoom.SaveAsync(redis, server.CancellationToken);
 
                             // GOD
                             var godPassword = new SecureString();
                             foreach (var c in "god")
+                            {
                                 godPassword.AppendChar(c);
+                            }
+
                             godPlayer.SetPassword(godPassword);
-                            await godPlayer.SaveAsync(redis);
+                            await godPlayer.SaveAsync(redis, server.CancellationToken);
 
                             // LOOK
                             {
@@ -90,7 +103,7 @@
                                                           Description = "A program used to observe your surroundings",
                                                           Interactive = false
                                                       };
-                                await lookProgram.SaveAsync(redis);
+                                await lookProgram.SaveAsync(redis, server.CancellationToken);
 
                                 // LINK-LOOK-ROOM
                                 var linkLook = new Link("look", godPlayer.DbRef)
@@ -99,9 +112,14 @@
                                                        Aliases = new[] { "l" },
                                                        Target = 3
                                                    };
-                                await linkLook.MoveAsync(voidRoom.DbRef, redis);
-                                var void1 = ObjectBase.GetAsync(redis, voidRoom.DbRef).Result;
-                                Debug.Assert(void1.Contents.Length == 1, "After reparenting, VOID should have 1 content");
+                                await linkLook.MoveAsync(voidRoom.DbRef, redis, server.CancellationToken);
+                                var void1 = ObjectBase.GetAsync(redis, voidRoom.DbRef, server.CancellationToken).Result;
+                                if (void1 == null)
+                                {
+                                    throw new InvalidOperationException("void1 cannot be null");
+                                }
+
+                                Debug.Assert(void1.Contents?.Length == 1, "After reparenting, VOID should have 1 content");
                             }
 
                             // @NAME
@@ -114,7 +132,7 @@
                                                           Description = "A program used to rename objects",
                                                           Interactive = false
                                                       };
-                                await nameProgram.SaveAsync(redis);
+                                await nameProgram.SaveAsync(redis, server.CancellationToken);
 
                                 // LINK-NAME-ROOM
                                 var linkName = new Link("@name", godPlayer.DbRef)
@@ -122,21 +140,26 @@
                                                        DbRef = 6,
                                                        Target = 5
                                                    };
-                                await linkName.MoveAsync(voidRoom.DbRef, redis);
-                                var void2 = ObjectBase.GetAsync(redis, voidRoom.DbRef).Result;
-                                Debug.Assert(void2.Contents.Length == 2, "After reparenting, VOID should have 2 contents");
+                                await linkName.MoveAsync(voidRoom.DbRef, redis, server.CancellationToken);
+                                var void2 = ObjectBase.GetAsync(redis, voidRoom.DbRef, server.CancellationToken).Result;
+                                if (void2 == null)
+                                {
+                                    throw new InvalidOperationException("void2 cannot be null");
+                                }
+
+                                Debug.Assert(void2.Contents?.Length == 2, "After reparenting, VOID should have 2 contents");
                             }
                         }
                         else
                         {
                             // Ensure we can read Void and God
-                            var voidRoom = await Room.GetAsync(redis, 1);
+                            var voidRoom = await Room.GetAsync(redis, 1, server.CancellationToken);
                             Debug.Assert(voidRoom != null, "voidRoom != null");
 
-                            godPlayer = await Player.GetAsync(redis, 2);
+                            godPlayer = await Player.GetAsync(redis, 2, server.CancellationToken);
                             Debug.Assert(godPlayer != null, "godPlayer != null");
 
-                            var godComposed = await CacheManager.LookupOrRetrieveAsync(2, redis, async d => await Player.GetAsync(redis, d));
+                            var godComposed = await CacheManager.LookupOrRetrieveAsync(2, redis, async (d, token) => await Player.GetAsync(redis, d, token), server.CancellationToken);
                             Debug.Assert(godComposed != null, "godComposed != null");
                         }
 
@@ -158,17 +181,7 @@
                         return 0;
                     }).Wait();
 
-                // Setup scripting engine
-                var scriptingEngine = new Engine(redis);
-
                 // Listen for connections
-                Debug.Assert(mudpieConfigurationSection.Ports != null, "mudpieConfigurationSection.Ports != null");
-                var server = new Server(mudpieConfigurationSection.Ports.Select(p => p.Port).ToArray(), scriptingEngine)
-                                 {
-                                     ShowBytes = true,
-                                     ShowCommands = false,
-                                     ShowData = true
-                                 };
                 server.Start();
 
                 Console.ReadLine();

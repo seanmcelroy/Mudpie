@@ -25,17 +25,17 @@ namespace Mudpie.Scripting.Common
         /// <summary>
         /// A value indicating this instance is unset
         /// </summary>
-        public static readonly DbRef NOTHING = 0;
+        public static readonly DbRef Nothing = 0;
 
         /// <summary>
         /// A value indicating this instance is ambiguous
         /// </summary>
-        public static readonly DbRef AMBIGUOUS = -1;
+        public static readonly DbRef Ambiguous = -1;
 
         /// <summary>
         /// A value indicating no match could be found
         /// </summary>
-        public static readonly DbRef FAILED_MATCH = -2;
+        public static readonly DbRef FailedMatch = -2;
 
         /// <summary>
         /// The internal numeric value of the database reference
@@ -63,39 +63,50 @@ namespace Mudpie.Scripting.Common
             return "#" + reference.referenceNumber.ToString(@"##000000");
         }
 
+        /// <summary>
+        /// Adds two database references together.  If the databases references are not the same,
+        /// they become <see cref="Ambiguous"/>.  If either is <see cref="Ambiguous"/>, the result
+        /// is still <see cref="Ambiguous"/>.  If one is <see cref="Nothing"/> and the other is not,
+        /// then the other is returned.  If one is <see cref="FailedMatch"/> and the other is not,
+        /// then the other is returned.
+        /// </summary>
+        /// <param name="a">The first database reference to add</param>
+        /// <param name="b">The second database reference to add</param>
+        /// <returns>A value indicating the 'sum' of the two database references</returns>
+        /// <exception cref="InvalidOperationException">Thrown if the logic of the method cannot determine if the references can add (software error).</exception>
         public static DbRef operator +(DbRef a, DbRef b)
         {
-            if (a.Equals(AMBIGUOUS) || b.Equals(AMBIGUOUS))
+            if (a.Equals(Ambiguous) || b.Equals(Ambiguous))
             {
-                return AMBIGUOUS;
+                return Ambiguous;
             }
 
-            if (a.Equals(FAILED_MATCH) && b.Equals(FAILED_MATCH))
+            if (a.Equals(FailedMatch) && b.Equals(FailedMatch))
             {
-                return FAILED_MATCH;
+                return FailedMatch;
             }
 
-            if (a.Equals(NOTHING))
+            if (a.Equals(Nothing))
             {
                 return b;
             }
 
-            if (b.Equals(NOTHING))
+            if (b.Equals(Nothing))
             {
                 return a;
             }
 
-            if (!a.Equals(FAILED_MATCH) && !b.Equals(FAILED_MATCH))
+            if (!a.Equals(FailedMatch) && !b.Equals(FailedMatch))
             {
-                return AMBIGUOUS;
+                return Ambiguous;
             }
 
-            if (a.Equals(FAILED_MATCH))
+            if (a.Equals(FailedMatch))
             {
                 return b;
             }
 
-            if (b.Equals(FAILED_MATCH))
+            if (b.Equals(FailedMatch))
             {
                 return a;
             }
@@ -111,7 +122,7 @@ namespace Mudpie.Scripting.Common
         {
             if (string.IsNullOrWhiteSpace(referenceString))
             {
-                return NOTHING;
+                return Nothing;
             }
 
             if (!referenceString.StartsWith("#"))
@@ -145,10 +156,17 @@ namespace Mudpie.Scripting.Common
         {
             return new DbRef(referenceNumber);
         }
-        
+
+        /// <summary>
+        /// Attempts to parse a string as a <see cref="DbRef"/>
+        /// </summary>
+        /// <param name="referenceString">The string to attempt to parse</param>
+        /// <param name="reference">If parsed, the output result</param>
+        /// <returns>A <see cref="bool"/> indicating whether the <param name="referenceString"></param> can be parsed as a <see cref="DbRef"/></returns>
+        [Pure]
         public static bool TryParse([CanBeNull] string referenceString, out DbRef reference)
         {
-            reference = NOTHING;
+            reference = Nothing;
 
             if (referenceString == null || !referenceString.StartsWith("#"))
             {
