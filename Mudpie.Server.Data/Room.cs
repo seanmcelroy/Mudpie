@@ -43,6 +43,20 @@ namespace Mudpie.Server.Data
         }
 
         /// <summary>
+        /// Creates a new room with the specified name
+        /// </summary>
+        /// <param name="redis">The client proxy to access the underlying data store</param>
+        /// <param name="name">The name of the new room</param>
+        /// <returns>The newly-created <see cref="Room"/> object</returns>
+        [NotNull, ItemNotNull]
+        public static async Task<Room> CreateAsync([NotNull] ICacheClient redis, [NotNull] string name)
+        {
+            var newRoom = await CreateAsync<Room>(redis);
+            newRoom.Name = name;
+            return newRoom;
+        }
+
+        /// <summary>
         /// Gets a <see cref="Room"/> from the underlying data store
         /// </summary>
         /// <param name="redis">The client proxy to access the underlying data store</param>
@@ -50,7 +64,7 @@ namespace Mudpie.Server.Data
         /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>The matching <see cref="Room"/>, if it exists for the supplied <paramref name="roomRef"/>; otherwise, null.</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Room> GetAsync([NotNull] ICacheClient redis, DbRef roomRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync(roomRef, redis, async (d, token) => await redis.GetAsync<Room>($"mudpie::room:{d}"), cancellationToken))?.DataObject;
+        public static new async Task<Room> GetAsync([NotNull] ICacheClient redis, DbRef roomRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync<Room>(roomRef, redis, async (d, token) => await redis.GetAsync<Room>($"mudpie::room:{d}"), cancellationToken))?.DataObject;
 
         /// <inheritdoc />
         public override async Task SaveAsync(ICacheClient redis, CancellationToken cancellationToken)

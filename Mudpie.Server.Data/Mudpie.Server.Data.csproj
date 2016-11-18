@@ -157,7 +157,7 @@
     <Compile Include="CacheManager.cs" />
     <Compile Include="ComposedObject.cs" />
     <Compile Include="IComposedObject.cs" />
-    <Compile Include="IComposedObjectT.cs" />
+    <Compile Include="IComposedObject{T}.cs" />
     <Compile Include="Link.cs" />
     <Compile Include="ObjectBase.cs" />
     <Compile Include="Player.cs" />

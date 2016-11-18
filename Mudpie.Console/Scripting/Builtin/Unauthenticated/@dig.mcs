@@ -1,0 +1,6 @@
+﻿if (string.IsNullOrWhiteSpace(PrepositionString) &&
+    string.IsNullOrWhiteSpace(IndirectObjectString))
+{
+    // Format: @dig <new-room-name>
+    DatabaseLibrary.CreateRoom(DirectObjectString);
+}

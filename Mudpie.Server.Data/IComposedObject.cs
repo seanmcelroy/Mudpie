@@ -26,14 +26,8 @@ namespace Mudpie.Server.Data
         /// Gets or sets the <see cref="ObjectBase"/>s representing the contents <see cref="DbRef"/> of the <see cref="DataObject"/>
         /// </summary>
         [CanBeNull]
-        System.Collections.ObjectModel.ReadOnlyCollection<IComposedObject> Contents { get; set; }
-
-        /// <summary>
-        /// Gets or sets the underlying <see cref="ObjectBase"/> that was collapsed to compose this object-oriented version that inherits parent properties
-        /// </summary>
-        [NotNull]
-        ObjectBase DataObject { get; set; }
-
+        System.Collections.ObjectModel.ReadOnlyCollection<IComposedObject<ObjectBase>> Contents { get; set; }
+        
         /// <summary>
         /// Gets or sets the <see cref="ObjectBase"/> representing the location <see cref="DbRef"/> of the <see cref="DataObject"/>
         /// </summary>

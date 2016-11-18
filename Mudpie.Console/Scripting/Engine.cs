@@ -109,7 +109,7 @@ namespace Mudpie.Console.Scripting
                 Debug.Assert(outputStream != null, "outputStream != null");
                 Debug.Assert(outputStreamWriter != null, "outputStreamWriter != null");
 
-                var scriptGlobals = new ContextGlobals(thisObject, caller, outputStreamWriter, new Libraries.DatabaseLibrary(caller.DbRef, this.redis))
+                var scriptGlobals = new ContextGlobals(thisObject, caller, outputStreamWriter, new Libraries.DatabaseLibrary(caller, this.redis))
                 {
                     ArgString = argString,
                     Args = args,
@@ -118,7 +118,7 @@ namespace Mudpie.Console.Scripting
                     IndirectObject = indirectObject,
                     IndirectObjectString = indirectObjectString,
                     Player = connection?.Identity,
-                    PlayerLocation = connection?.Identity == null ? null : (await CacheManager.LookupOrRetrieveAsync(connection.Identity.Location, this.Redis, async (d, token) => await Room.GetAsync(this.Redis, d, token), cancellationToken))?.DataObject,
+                    PlayerLocation = connection?.Identity == null ? null : (await CacheManager.LookupOrRetrieveAsync<ObjectBase>(connection.Identity.Location, this.Redis, async (d, token) => await Room.GetAsync(this.Redis, d, token), cancellationToken))?.DataObject,
                     PrepositionString = prepositionString,
                     Verb = verb
                 };

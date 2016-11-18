@@ -55,13 +55,13 @@ namespace Mudpie.Console
                 var partialMatch = DbRef.FailedMatch;
                 ObjectBase lastPartialMatchObject = null;
 
-                var directObject = await CacheManager.LookupOrRetrieveAsync(directObjectRef, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                var directObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(directObjectRef, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                 if (directObject == null)
                 {
                     return new Tuple<DbRef, ObjectBase>(exactMatch, null);
                 }
 
-                MatchTypeOnObject<Link>(text, directObject, ref exactMatch, ref lastExactMatchObject, ref partialMatch, ref lastPartialMatchObject);
+                MatchTypeOnObject<Link, ObjectBase>(text, directObject, ref exactMatch, ref lastExactMatchObject, ref partialMatch, ref lastPartialMatchObject);
 
                 if (exactMatch > 0)
                 {
@@ -88,13 +88,13 @@ namespace Mudpie.Console
                 var partialMatch = DbRef.FailedMatch;
                 ObjectBase lastPartialMatchObject = null;
 
-                var indirectObject = await CacheManager.LookupOrRetrieveAsync(indirectObjectRef, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                var indirectObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(indirectObjectRef, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                 if (indirectObject == null)
                 {
                     return new Tuple<DbRef, ObjectBase>(exactMatch, null);
                 }
 
-                MatchTypeOnObject<Link>(text, indirectObject, ref exactMatch, ref lastExactMatchObject, ref partialMatch, ref lastPartialMatchObject);
+                MatchTypeOnObject<Link, ObjectBase>(text, indirectObject, ref exactMatch, ref lastExactMatchObject, ref partialMatch, ref lastPartialMatchObject);
 
                 if (exactMatch > 0)
                 {
@@ -193,10 +193,10 @@ namespace Mudpie.Console
             {
                 foreach (var playerItem in player.Contents)
                 {
-                    var playerItemObject = await CacheManager.LookupOrRetrieveAsync(playerItem, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                    var playerItemObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(playerItem, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                     if (playerItemObject != null)
                     {
-                        MatchTypeOnObject<T>(
+                        MatchTypeOnObject<T, ObjectBase>(
                             text,
                             playerItemObject,
                             ref exactMatch,
@@ -210,12 +210,12 @@ namespace Mudpie.Console
             // Places to check - #2 - The room the player is in
             if (player != null)
             {
-                var playerLocationObject = await CacheManager.LookupOrRetrieveAsync(player.Location, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                var playerLocationObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(player.Location, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                 if (playerLocationObject?.Contents != null)
                 {
                     foreach (var roomItemObject in playerLocationObject.Contents)
                     {
-                        MatchTypeOnObject<T>(text, roomItemObject, ref exactMatch, ref lastExactMatchObject, ref partialMatch, ref lastPartialMatchObject);
+                        MatchTypeOnObject<T, ObjectBase>(text, roomItemObject, ref exactMatch, ref lastExactMatchObject, ref partialMatch, ref lastPartialMatchObject);
                     }
                 }
             }
@@ -237,14 +237,15 @@ namespace Mudpie.Console
             return new Tuple<DbRef, ObjectBase>(exactMatch + partialMatch, null);
         }
 
-        private static void MatchTypeOnObject<T>(
+        private static void MatchTypeOnObject<T, V>(
             [NotNull] string text,
-            [NotNull] IComposedObject searchObject,
+            [NotNull] IComposedObject<V> searchObject,
             ref DbRef exactMatch,
             ref ObjectBase lastExactMatchObject,
             ref DbRef partialMatch,
             ref ObjectBase lastPartialMatchObject)
             where T : ObjectBase
+            where V : ObjectBase
         {
             if (searchObject == null)
             {

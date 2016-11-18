@@ -28,7 +28,8 @@ namespace Mudpie.Server.Data
     /// A composed object is a materialized view of a <see cref="ObjectBase"/> that has any inheritance <see cref="DbRef"/>'s retrieved from the <see cref="CacheManager"/>
     /// to provide easily accessible inherited object graph access
     /// </summary>
-    public class ComposedObject<T> : IComposedObject<T> where T : ObjectBase
+    public class ComposedObject<T> : IComposedObject<T>
+        where T : ObjectBase
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ComposedObject{T}"/> class.
@@ -61,13 +62,13 @@ namespace Mudpie.Server.Data
                 throw new ArgumentNullException(nameof(dataObject));
             }
 
-            IComposedObject<T> ret = new ComposedObject<T>(dataObject);
+            var ret = new ComposedObject<T>(dataObject);
             var perfect = true;
 
             var taskLocation = Task.Run(
                 async () =>
                 {
-                    var composedLocation = await CacheManager.LookupOrRetrieveAsync(dataObject.Location, redis, async (d, token) => await Room.GetAsync(redis, dataObject.Location, token), cancellationToken);
+                    var composedLocation = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(dataObject.Location, redis, async (d, token) => await Room.GetAsync(redis, dataObject.Location, token), cancellationToken);
                     ret.Location = composedLocation;
                     perfect = perfect && (dataObject.Location <= 0 || composedLocation != null);
                 },
@@ -75,12 +76,12 @@ namespace Mudpie.Server.Data
 
             if (dataObject.Contents != null)
             {
-                var contents = new List<IComposedObject>();
+                var contents = new List<IComposedObject<ObjectBase>>();
                 Parallel.ForEach(
                     dataObject.Contents,
                     async dbref =>
                     {
-                        var composedContent = await CacheManager.LookupOrRetrieveAsync(dbref, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                        var composedContent = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(dbref, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                         if (composedContent != null)
                         {
                             contents.Add(composedContent);
@@ -95,7 +96,7 @@ namespace Mudpie.Server.Data
             var taskParent = Task.Run(
                 async () =>
                 {
-                    var composedParent = await CacheManager.LookupOrRetrieveAsync(dataObject.Parent, redis, async (d, token) => await ObjectBase.GetAsync(redis, dataObject.Parent, token), cancellationToken);
+                    var composedParent = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(dataObject.Parent, redis, async (d, token) => await ObjectBase.GetAsync(redis, dataObject.Parent, token), cancellationToken);
                     ret.Parent = composedParent;
                     perfect = perfect && (dataObject.Parent <= 0 || composedParent != null);
                 }, 
@@ -112,30 +113,12 @@ namespace Mudpie.Server.Data
         public T DataObject { get; private set; }
 
         /// <inheritdoc />
-        ObjectBase IComposedObject.DataObject
-        {
-            get
-            {
-                return this.DataObject;
-            }
-            set
-            {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
-
-                this.DataObject = (T)value;
-            }
-        }
-
-        /// <inheritdoc />
         [JsonIgnore]
         public IComposedObject Location { get; set; }
 
         /// <inheritdoc />
         [JsonIgnore]
-        public ReadOnlyCollection<IComposedObject> Contents { get; set; }
+        public ReadOnlyCollection<IComposedObject<ObjectBase>> Contents { get; set; }
 
         /// <inheritdoc />
         [JsonIgnore]

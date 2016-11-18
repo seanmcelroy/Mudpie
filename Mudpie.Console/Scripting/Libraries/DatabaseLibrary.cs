@@ -13,6 +13,8 @@ namespace Mudpie.Console.Scripting.Libraries
 
     using JetBrains.Annotations;
 
+    using log4net;
+
     using Mudpie.Scripting.Common;
     using Server.Data;
 
@@ -24,11 +26,19 @@ namespace Mudpie.Console.Scripting.Libraries
     public class DatabaseLibrary : IDatabaseLibrary
     {
         /// <summary>
+        /// The logging utility instance to use to log events from this class
+        /// </summary>
+        [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(ObjectBase));
+
+        /// <summary>
         /// The object on which the verb that called the currently-running
         /// verb was found. For the first verb called for a given command, 'caller' has the
         /// same value as <see cref="Player"/>.
         /// </summary>
-        private readonly DbRef caller;
+        [NotNull]
+        private readonly ObjectBase caller;
 
         /// <summary>
         /// The client proxy to the underlying data store
@@ -39,16 +49,53 @@ namespace Mudpie.Console.Scripting.Libraries
         /// <summary>
         /// Initializes a new instance of the <see cref="DatabaseLibrary"/> class.
         /// </summary>
-        /// <param name="callerReference">The caller reference</param>
+        /// <param name="caller">The caller of the functions in this library</param>
         /// <param name="redis">The client proxy to the underlying data store</param>
-        public DatabaseLibrary(DbRef callerReference, [NotNull] ICacheClient redis)
+        public DatabaseLibrary([NotNull] ObjectBase caller, [NotNull] ICacheClient redis)
         {
-            this.caller = callerReference;
+            this.caller = caller;
             this.redis = redis;
         }
 
         /// <inheritdoc />
-        public bool Rename(DbRef reference, [NotNull] string newName)
+        public DbRef CreateRoom(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return DbRef.Nothing;
+            }
+
+            var cts = new CancellationTokenSource(5000); // 5 seconds
+            var locationGetAsyncTask = ObjectBase.GetAsync(this.redis, this.caller.Location, cts.Token);
+            if (!locationGetAsyncTask.Wait(5000))
+            {
+                return DbRef.Nothing;
+            }
+
+            var composedCallerLocation = locationGetAsyncTask.Result;
+            if (composedCallerLocation == null)
+            {
+                return DbRef.Nothing;
+            }
+
+            var createRoomAsyncTask = Room.CreateAsync(this.redis, name);
+            if (!createRoomAsyncTask.Wait(5000))
+            {
+                return DbRef.Nothing;
+            }
+
+            var room = createRoomAsyncTask.Result;
+            room.Location = composedCallerLocation.Location;
+            room.Owner = this.caller.Owner;
+            room.Parent = composedCallerLocation.Parent;
+            room.SaveAsync(this.redis, cts.Token).Wait(cts.Token);
+
+            Logger.Info($"Object {this.caller} created new room {name}({room.DbRef})");
+            return room.DbRef;
+        }
+
+        /// <inheritdoc />
+        public bool Rename(DbRef reference, string newName)
         {
             if (string.IsNullOrWhiteSpace(newName))
             {

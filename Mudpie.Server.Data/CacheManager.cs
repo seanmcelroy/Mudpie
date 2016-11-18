@@ -89,7 +89,7 @@ namespace Mudpie.Server.Data
                 return null;
             }
 
-            var composition = await ComposedObject<T>.CreateAsync(redis, obj, cancellationToken);
+            var composition = await ComposedObject<T>.CreateAsync(redis, (T)obj, cancellationToken);
             if (composition.Item1)
             {
                 // The composition was perfect!  No unresolved references, so cache it as-is.
@@ -114,7 +114,8 @@ namespace Mudpie.Server.Data
             DbRef reference,
             [NotNull] ICacheClient redis,
             [NotNull] T updatedDataObject,
-            CancellationToken cancellationToken) where T : ObjectBase
+            CancellationToken cancellationToken)
+            where T : ObjectBase
         {
             if (Cache.Contains(reference))
             {

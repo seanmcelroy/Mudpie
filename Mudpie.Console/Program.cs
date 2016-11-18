@@ -73,8 +73,6 @@
                         {
                             Console.WriteLine("Redis database is not seeded with any data.  Creating seed data...");
 
-                            await redis.Database.StringSetAsync("mudpie::dbref:counter", 4);
-
                             // VOID
                             var voidRoom = new Room("The Void", godPlayer.DbRef)
                                                {
@@ -122,33 +120,40 @@
                                 Debug.Assert(void1.Contents?.Length == 1, "After reparenting, VOID should have 1 content");
                             }
 
+                            var nextAvailableDbRef = 5;
+                            var registerProgramToVoid = new Func<string, string, int, ICacheClient, Task<int>>(async (name, desc, nextDbRef, cacheClient) =>
+                                                            {
+                                                                var source = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, name);
+                                                                Debug.Assert(source != null, "nameProgramSource != null");
+                                                                var nameProgram = new Mudpie.Server.Data.Program(name, godPlayer.DbRef, source)
+                                                                {
+                                                                    DbRef = nextDbRef,
+                                                                    Description = "A program used to rename objects",
+                                                                    Interactive = false
+                                                                };
+                                                                await nameProgram.SaveAsync(cacheClient, server.CancellationToken);
+
+                                                                // LINK-NAME-ROOM
+                                                                var linkName = new Link(System.IO.Path.GetFileNameWithoutExtension(name), godPlayer.DbRef)
+                                                                {
+                                                                    DbRef = nextDbRef + 1,
+                                                                    Target = nextDbRef
+                                                                };
+                                                                await linkName.MoveAsync(voidRoom.DbRef, cacheClient, server.CancellationToken);
+                                                                var void2 = ObjectBase.GetAsync(cacheClient, voidRoom.DbRef, server.CancellationToken).Result;
+                                                                if (void2 == null)
+                                                                {
+                                                                    throw new InvalidOperationException("void2 cannot be null");
+                                                                }
+
+                                                                return nextDbRef + 2;
+                                                            });
+
                             // @NAME
-                            {
-                                var nameProgramSource = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, "@name.mcs");
-                                Debug.Assert(nameProgramSource != null, "nameProgramSource != null");
-                                var nameProgram = new Mudpie.Server.Data.Program("@name.mcs", godPlayer.DbRef, nameProgramSource)
-                                                      {
-                                                          DbRef = 5,
-                                                          Description = "A program used to rename objects",
-                                                          Interactive = false
-                                                      };
-                                await nameProgram.SaveAsync(redis, server.CancellationToken);
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@dig.msc", "Creates new rooms", nextAvailableDbRef, redis);
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@name.msc", "Rename objects", nextAvailableDbRef, redis);
 
-                                // LINK-NAME-ROOM
-                                var linkName = new Link("@name", godPlayer.DbRef)
-                                                   {
-                                                       DbRef = 6,
-                                                       Target = 5
-                                                   };
-                                await linkName.MoveAsync(voidRoom.DbRef, redis, server.CancellationToken);
-                                var void2 = ObjectBase.GetAsync(redis, voidRoom.DbRef, server.CancellationToken).Result;
-                                if (void2 == null)
-                                {
-                                    throw new InvalidOperationException("void2 cannot be null");
-                                }
-
-                                Debug.Assert(void2.Contents?.Length == 2, "After reparenting, VOID should have 2 contents");
-                            }
+                            await redis.Database.StringSetAsync("mudpie::dbref:counter", nextAvailableDbRef);
                         }
                         else
                         {
@@ -159,7 +164,7 @@
                             godPlayer = await Player.GetAsync(redis, 2, server.CancellationToken);
                             Debug.Assert(godPlayer != null, "godPlayer != null");
 
-                            var godComposed = await CacheManager.LookupOrRetrieveAsync(2, redis, async (d, token) => await Player.GetAsync(redis, d, token), server.CancellationToken);
+                            var godComposed = await CacheManager.LookupOrRetrieveAsync<Player>(2, redis, async (d, token) => await Player.GetAsync(redis, d, token), server.CancellationToken);
                             Debug.Assert(godComposed != null, "godComposed != null");
                         }
 

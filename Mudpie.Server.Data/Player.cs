@@ -73,6 +73,14 @@ namespace Mudpie.Server.Data
         /// </summary>
         public DateTime? LastLogin { get; set; }
 
+        /// <summary>
+        /// Creates a new player with the specified vanity name and credential username
+        /// </summary>
+        /// <param name="redis">The client proxy to access the underlying data store</param>
+        /// <param name="name">The display name of the new player</param>
+        /// <param name="username">The login name of the new player</param>
+        /// <returns>The newly-created <see cref="Player"/> object</returns>
+        [NotNull, ItemNotNull]
         public static async Task<Player> CreateAsync([NotNull] ICacheClient redis, [NotNull] string name, [NotNull] string username)
         {
             var newPlayer = await CreateAsync<Player>(redis);
@@ -89,7 +97,7 @@ namespace Mudpie.Server.Data
         /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>The <see cref="Player"/> if found; otherwise, null</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync(playerRef, redis, async (d, token) => await redis.GetAsync<Player>($"mudpie::player:{d}"), cancellationToken))?.DataObject;
+        public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync<Player>(playerRef, redis, async (d, token) => await redis.GetAsync<Player>($"mudpie::player:{d}"), cancellationToken))?.DataObject;
 
         /// <inheritdoc />
         public override bool Equals(object obj)

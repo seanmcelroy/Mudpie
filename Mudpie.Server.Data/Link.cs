@@ -55,7 +55,7 @@ namespace Mudpie.Server.Data
         /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>The matching <see cref="Link"/>, if it exists for the supplied <paramref name="linkRef"/>; otherwise, null.</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Link> GetAsync([NotNull] ICacheClient redis, DbRef linkRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync(linkRef, redis, async (d, token) => await redis.GetAsync<Link>($"mudpie::link:{d}"), cancellationToken))?.DataObject;
+        public static new async Task<Link> GetAsync([NotNull] ICacheClient redis, DbRef linkRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync<Link>(linkRef, redis, async (d, token) => await redis.GetAsync<Link>($"mudpie::link:{d}"), cancellationToken))?.DataObject;
 
         /// <inheritdoc />
         public override async Task SaveAsync(ICacheClient redis, CancellationToken cancellationToken)

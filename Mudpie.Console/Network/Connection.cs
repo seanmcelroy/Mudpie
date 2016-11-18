@@ -411,7 +411,11 @@ namespace Mudpie.Console.Network
                 var prepFoundStart = -1;
                 foreach (var word in words.Skip(1))
                 {
-                    if (verb != null && prepositions.Any(p => word.IndexOf(p, StringComparison.OrdinalIgnoreCase) > -1))
+                    var prepMatch = prepositions
+                        .Select(p => Regex.Match(word, @"\b" + p + @"\b", RegexOptions.IgnoreCase))
+                        .FirstOrDefault(p => p != null && p.Success);
+
+                    if (verb != null && prepMatch != null)
                     {
                         prep = word;
                         prepFoundStart = content.IndexOf(word, verb.Length, StringComparison.Ordinal);

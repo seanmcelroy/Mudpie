@@ -153,7 +153,7 @@ namespace Mudpie.Server.Data
         /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>The <see cref="Data.Program"/> if found; otherwise, null</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Program> GetAsync([NotNull] ICacheClient redis, DbRef programRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync(programRef, redis, async (d, token) => await redis.GetAsync<Program>($"mudpie::program:{d}"), cancellationToken))?.DataObject;
+        public static new async Task<Program> GetAsync([NotNull] ICacheClient redis, DbRef programRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync<Program>(programRef, redis, async (d, token) => await redis.GetAsync<Program>($"mudpie::program:{d}"), cancellationToken))?.DataObject;
 
         /// <summary>
         /// Compiles the program into a Roslyn Scripting API object that can be executed
@@ -171,6 +171,7 @@ namespace Mudpie.Server.Data
 
             Debug.Assert(this.compiledScript != null, "this.compiledScript != null");
 
+            // ReSharper disable once AssignNullToNotNullAttribute
             return this.compiledScript.Value;
         }
 

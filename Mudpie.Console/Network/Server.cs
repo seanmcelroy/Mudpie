@@ -140,11 +140,10 @@ namespace Mudpie.Console.Network
                                          {
                                              var voidRoom =
                                                  await
-                                                     CacheManager.LookupOrRetrieveAsync(
+                                                     CacheManager.LookupOrRetrieveAsync<Room>(
                                                          1,
                                                          this.ScriptingEngine.Redis,
-                                                         (d, token) =>
-                                                                 Room.GetAsync(this.ScriptingEngine.Redis, d, token),
+                                                         async (d, token) => await Room.GetAsync(this.ScriptingEngine.Redis, d, token),
                                                          default(CancellationToken));
                                              Debug.Assert(voidRoom != null, "voidRoom != null");
                                              if (voidRoom.Contents != null)

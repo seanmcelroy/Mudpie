@@ -114,6 +114,11 @@ namespace Mudpie.Server.Data
                 throw new ArgumentNullException(nameof(redis));
             }
 
+            if (redis.Database == null)
+            {
+                throw new InvalidOperationException("redis.Database is null");
+            }
+
             var newObject = new T
                                 {
                                     DbRef = Convert.ToInt32(await redis.Database.StringIncrementAsync("mudpie::dbref:counter"))
@@ -207,8 +212,8 @@ namespace Mudpie.Server.Data
                 return;
             }
 
-            var oldLocationObject = this.Location.Equals(DbRef.Nothing) ? null : await CacheManager.LookupOrRetrieveAsync(this.Location, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
-            var newLocationObject = await CacheManager.LookupOrRetrieveAsync(newLocation, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
+            var oldLocationObject = this.Location.Equals(DbRef.Nothing) ? null : await CacheManager.LookupOrRetrieveAsync<ObjectBase>(this.Location, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
+            var newLocationObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(newLocation, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
 
             if (newLocationObject != null)
             {
@@ -224,7 +229,9 @@ namespace Mudpie.Server.Data
                 this.Location = newLocation;
                 await this.SaveAsync(redis, cancellationToken);
 
-                await CacheManager.UpdateAsync(newLocation, redis, newLocationObject.DataObject, cancellationToken);
+                var genericUpdateAsync = typeof(CacheManager).GetMethod(nameof(CacheManager.UpdateAsync)).MakeGenericMethod(newLocationObject.DataObject.GetType());
+                var task = (Task)genericUpdateAsync.Invoke(null, new object[] { newLocation, redis, newLocationObject.DataObject, cancellationToken });
+                await task;
             }
         }
 
@@ -240,7 +247,7 @@ namespace Mudpie.Server.Data
                 throw new ArgumentNullException(nameof(redis));
             }
 
-            var newParentObject = await CacheManager.LookupOrRetrieveAsync(newParent, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
+            var newParentObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(newParent, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
 
             if (newParentObject != null)
             {
@@ -249,12 +256,7 @@ namespace Mudpie.Server.Data
             }
         }
 
-        /// <summary>
-        /// Saves the object back to the persistent data store
-        /// </summary>
-        /// <param name="redis">The client proxy to access the underlying data store</param>
-        /// <param name="cancellationToken">A cancellation token used to abort the method</param>
-        /// <returns>A task object used to await this method for completion</returns>
+        /// <inheritdoc />
         public abstract Task SaveAsync(ICacheClient redis, CancellationToken cancellationToken);
 
         /// <inheritdoc />

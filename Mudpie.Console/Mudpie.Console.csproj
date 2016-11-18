@@ -189,6 +189,7 @@
     <Compile Include="Network\Server.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="Scripting\Builtin\Unauthenticated\%40dig.mcs" />
     <Compile Include="Scripting\Context.cs" />
     <Compile Include="Scripting\ContextErrorNumber.cs" />
     <Compile Include="Scripting\ContextState.cs" />
