@@ -46,11 +46,17 @@ namespace Mudpie.Console.Network
             this.server = server;
         }
 
+        /// <summary>
+        /// Gets or sets the type of port (encrypted or plain-text) of a connection
+        /// </summary>
         public PortClass PortType { get; set; }
 
         [NotNull]
         public async Task StartAcceptingAsync(CancellationToken cancellationToken)
         {
+            if (this.LocalEndpoint == null)
+                throw new InvalidOperationException("The local endpoint for this listener is null");
+
             // Establish the local endpoint for the socket.
             var localEndPoint = new IPEndPoint(IPAddress.Any, ((IPEndPoint)this.LocalEndpoint).Port);
 

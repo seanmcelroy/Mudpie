@@ -1,4 +1,13 @@
-﻿namespace Mudpie.Console
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="Program.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   The main application program loop
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+
+namespace Mudpie.Console
 {
     using System;
     using System.Configuration;
@@ -8,6 +17,8 @@
     using System.Threading.Tasks;
 
     using Configuration;
+
+    using JetBrains.Annotations;
 
     using log4net;
     using log4net.Config;
@@ -21,11 +32,15 @@
     using StackExchange.Redis.Extensions.Core;
     using StackExchange.Redis.Extensions.Newtonsoft;
 
+    /// <summary>
+    /// The main application program loop
+    /// </summary>
     public sealed class Program
     {
         /// <summary>
         /// The logging utility instance to use to log events from this class
         /// </summary>
+        [NotNull]
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Program));
 
         /// <summary>
@@ -151,6 +166,7 @@
                             // @NAME
                             nextAvailableDbRef = await registerProgramToVoid.Invoke("@dig.msc", "Creates new rooms", nextAvailableDbRef, redis);
                             nextAvailableDbRef = await registerProgramToVoid.Invoke("@name.msc", "Rename objects", nextAvailableDbRef, redis);
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("eval.msc", "Evaluates an expression and returns its result", nextAvailableDbRef, redis);
 
                             await redis.Database.StringSetAsync("mudpie::dbref:counter", nextAvailableDbRef);
                         }
@@ -187,7 +203,14 @@
                 // Listen for connections
                 server.Start();
 
-                Console.ReadLine();
+                Console.WriteLine("\r\nPress ~ to quit the server console");
+                while (Console.ReadKey().Key != ConsoleKey.Oem3)
+                {
+                }
+
+                Console.WriteLine("\r\nShutting down server...");
+                server.Stop();
+                Console.WriteLine("\r\nServer is shut down. End of line.");
             }
         }
     }

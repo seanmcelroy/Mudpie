@@ -6,7 +6,6 @@
 //   A program is a series of lines of code that can be executed within the MUD process
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Server.Data
 {
     using System;
@@ -78,6 +77,7 @@ namespace Mudpie.Server.Data
         /// Initializes a new instance of the <see cref="Program"/> class.
         /// </summary>
         [Obsolete("Only made public for a generic type parameter requirement", false)]
+
         // ReSharper disable once NotNullMemberIsNotInitialized
         public Program()
         {
@@ -119,6 +119,13 @@ namespace Mudpie.Server.Data
                                                       mscorlib,
                                                       systemCore,
                                                       scriptingCommon);
+                                                  
+                                                  // HACK: Special case... eval needs to be a bit 'meta'.
+                                                  if (string.Equals(this.Name, "eval.msc", StringComparison.Ordinal))
+                                                  {
+                                                      // ReSharper disable once PossibleNullReferenceException
+                                                      scriptOptions = scriptOptions.AddReferences(typeof(Microsoft.CodeAnalysis.Accessibility).Assembly, typeof(Microsoft.CodeAnalysis.CSharp.CSharpExtensions).Assembly, typeof(CSharpScript).Assembly, typeof(ScriptOptions).Assembly).AddImports("Microsoft.CodeAnalysis.CSharp.Scripting", "Microsoft.CodeAnalysis.Scripting");
+                                                  }
 
                                                   var roslynScript = CSharpScript.Create<object>(
                                                       this.ScriptSource,
@@ -127,6 +134,7 @@ namespace Mudpie.Server.Data
                                                       roslynScript != null,
                                                       "The script object must not be null after constructing it from default banner lines");
 
+                                                  // ReSharper disable once PossibleNullReferenceException
                                                   roslynScript.WithOptions(scriptOptions).Compile();
 
                                                   sw.Stop();
@@ -153,7 +161,7 @@ namespace Mudpie.Server.Data
         /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>The <see cref="Data.Program"/> if found; otherwise, null</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Program> GetAsync([NotNull] ICacheClient redis, DbRef programRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync<Program>(programRef, redis, async (d, token) => await redis.GetAsync<Program>($"mudpie::program:{d}"), cancellationToken))?.DataObject;
+        public static new async Task<Program> GetAsync([NotNull] ICacheClient redis, DbRef programRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync(programRef, redis, async (d, token) => await redis.GetAsync<Program>($"mudpie::program:{d}"), cancellationToken))?.DataObject;
 
         /// <summary>
         /// Compiles the program into a Roslyn Scripting API object that can be executed

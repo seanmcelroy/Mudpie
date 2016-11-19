@@ -6,7 +6,6 @@
 //   The base definition of any object in the MUD
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Server.Data
 {
     using System;
@@ -65,7 +64,7 @@ namespace Mudpie.Server.Data
             this.Name = name;
             this.Owner = owner;
         }
-        
+
         /// <summary>
         /// Gets or sets the database reference of the object
         /// </summary>
@@ -212,8 +211,8 @@ namespace Mudpie.Server.Data
                 return;
             }
 
-            var oldLocationObject = this.Location.Equals(DbRef.Nothing) ? null : await CacheManager.LookupOrRetrieveAsync<ObjectBase>(this.Location, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
-            var newLocationObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(newLocation, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
+            var oldLocationObject = this.Location.Equals(DbRef.Nothing) ? null : await CacheManager.LookupOrRetrieveAsync(this.Location, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
+            var newLocationObject = await CacheManager.LookupOrRetrieveAsync(newLocation, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
 
             if (newLocationObject != null)
             {
@@ -247,7 +246,7 @@ namespace Mudpie.Server.Data
                 throw new ArgumentNullException(nameof(redis));
             }
 
-            var newParentObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(newParent, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
+            var newParentObject = await CacheManager.LookupOrRetrieveAsync(newParent, redis, async (d, token) => await GetAsync(redis, d, token), cancellationToken);
 
             if (newParentObject != null)
             {

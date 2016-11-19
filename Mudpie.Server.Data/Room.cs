@@ -6,7 +6,6 @@
 //   A room is a place where objects can be located
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Server.Data
 {
     using System;
@@ -64,7 +63,7 @@ namespace Mudpie.Server.Data
         /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>The matching <see cref="Room"/>, if it exists for the supplied <paramref name="roomRef"/>; otherwise, null.</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Room> GetAsync([NotNull] ICacheClient redis, DbRef roomRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync<Room>(roomRef, redis, async (d, token) => await redis.GetAsync<Room>($"mudpie::room:{d}"), cancellationToken))?.DataObject;
+        public static new async Task<Room> GetAsync([NotNull] ICacheClient redis, DbRef roomRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync(roomRef, redis, async (d, token) => await redis.GetAsync<Room>($"mudpie::room:{d}"), cancellationToken))?.DataObject;
 
         /// <inheritdoc />
         public override async Task SaveAsync(ICacheClient redis, CancellationToken cancellationToken)

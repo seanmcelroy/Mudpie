@@ -15,6 +15,8 @@ namespace Mudpie.Console.Scripting
 
     using JetBrains.Annotations;
 
+    using Microsoft.CodeAnalysis.Scripting;
+
     using Mudpie.Server.Data;
 
     /// <summary>
@@ -75,17 +77,22 @@ namespace Mudpie.Console.Scripting
         [CanBeNull]
         public ContextErrorNumber? ErrorNumber { get; private set; }
 
+        /// <summary>
+        /// Gets the specific message for the error, if one was observed
+        /// </summary>
         [CanBeNull]
         public string ErrorMessage { get; private set; }
 
         /// <summary>
         /// Gets the name of the program
         /// </summary>
+        [CanBeNull]
         public string ProgramName => this.program?.Name;
 
         /// <summary>
         /// Gets the feedback provided by the output of the executing program
         /// </summary>
+        [NotNull]
         public Queue<string> Output { get; } = new Queue<string>();
 
         /// <summary>
@@ -124,6 +131,11 @@ namespace Mudpie.Console.Scripting
                 }
 
                 this.State = ContextState.Completed;
+            }
+            catch (CompilationErrorException ex)
+            {
+                this.State = ContextState.Errored;
+                this.ErrorMessage = ex.Message;
             }
             catch (Exception ex)
             {

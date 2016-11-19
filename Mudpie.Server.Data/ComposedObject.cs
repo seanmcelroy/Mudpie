@@ -7,7 +7,6 @@
 //   to provide easily accessible inherited object graph access
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Server.Data
 {
     using System;
@@ -28,6 +27,7 @@ namespace Mudpie.Server.Data
     /// A composed object is a materialized view of a <see cref="ObjectBase"/> that has any inheritance <see cref="DbRef"/>'s retrieved from the <see cref="CacheManager"/>
     /// to provide easily accessible inherited object graph access
     /// </summary>
+    /// <typeparam name="T">The type of the object this composed object adapts</typeparam>
     public class ComposedObject<T> : IComposedObject<T>
         where T : ObjectBase
     {
@@ -41,6 +41,23 @@ namespace Mudpie.Server.Data
         {
             this.DataObject = dataObject;
         }
+        
+        /// <inheritdoc />
+        [NotNull]
+        [JsonIgnore]
+        public T DataObject { get; }
+
+        /// <inheritdoc />
+        [JsonIgnore]
+        public IComposedObject Location { get; set; }
+
+        /// <inheritdoc />
+        [JsonIgnore]
+        public ReadOnlyCollection<IComposedObject<ObjectBase>> Contents { get; set; }
+
+        /// <inheritdoc />
+        [JsonIgnore]
+        public IComposedObject Parent { get; set; }
 
         /// <summary>
         /// Creates a new composed object
@@ -81,7 +98,7 @@ namespace Mudpie.Server.Data
                     dataObject.Contents,
                     async dbref =>
                     {
-                        var composedContent = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(dbref, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                        var composedContent = await CacheManager.LookupOrRetrieveAsync(dbref, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                         if (composedContent != null)
                         {
                             contents.Add(composedContent);
@@ -96,7 +113,7 @@ namespace Mudpie.Server.Data
             var taskParent = Task.Run(
                 async () =>
                 {
-                    var composedParent = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(dataObject.Parent, redis, async (d, token) => await ObjectBase.GetAsync(redis, dataObject.Parent, token), cancellationToken);
+                    var composedParent = await CacheManager.LookupOrRetrieveAsync(dataObject.Parent, redis, async (d, token) => await ObjectBase.GetAsync(redis, dataObject.Parent, token), cancellationToken);
                     ret.Parent = composedParent;
                     perfect = perfect && (dataObject.Parent <= 0 || composedParent != null);
                 }, 
@@ -106,22 +123,5 @@ namespace Mudpie.Server.Data
 
             return new Tuple<bool, IComposedObject<T>>(perfect, ret);
         }
-
-        /// <inheritdoc />
-        [NotNull]
-        [JsonIgnore]
-        public T DataObject { get; private set; }
-
-        /// <inheritdoc />
-        [JsonIgnore]
-        public IComposedObject Location { get; set; }
-
-        /// <inheritdoc />
-        [JsonIgnore]
-        public ReadOnlyCollection<IComposedObject<ObjectBase>> Contents { get; set; }
-
-        /// <inheritdoc />
-        [JsonIgnore]
-        public IComposedObject Parent { get; set; }
     }
 }

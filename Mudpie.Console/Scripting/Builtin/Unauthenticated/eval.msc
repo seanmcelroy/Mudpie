@@ -1,0 +1,2 @@
+﻿Microsoft.CodeAnalysis.Scripting.ScriptOptions options = Microsoft.CodeAnalysis.Scripting.ScriptOptions.Default;
+return CSharpScript.Eval(directObjectString, options);

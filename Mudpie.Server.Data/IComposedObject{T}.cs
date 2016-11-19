@@ -7,7 +7,6 @@
 //   to provide easily accessible inherited object graph access
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Server.Data
 {
     using Mudpie.Scripting.Common;
@@ -26,6 +25,6 @@ namespace Mudpie.Server.Data
         /// <summary>
         /// Gets the underlying <see cref="ObjectBase"/> that was collapsed to compose this object-oriented version that inherits parent properties
         /// </summary>
-        new T DataObject { get; }
+        T DataObject { get; }
     }
 }

@@ -6,7 +6,6 @@
 //   A player is a general thing that represents the character owned and controlled by a real user
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Server.Data
 {
     using System;
@@ -45,6 +44,7 @@ namespace Mudpie.Server.Data
         /// Initializes a new instance of the <see cref="Player"/> class.
         /// </summary>
         [Obsolete("Only made public for a generic type parameter requirement", false)]
+
         // ReSharper disable once NotNullMemberIsNotInitialized
         public Player()
         {
@@ -97,7 +97,7 @@ namespace Mudpie.Server.Data
         /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>The <see cref="Player"/> if found; otherwise, null</returns>
         [NotNull, Pure, ItemCanBeNull]
-        public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync<Player>(playerRef, redis, async (d, token) => await redis.GetAsync<Player>($"mudpie::player:{d}"), cancellationToken))?.DataObject;
+        public static new async Task<Player> GetAsync([NotNull] ICacheClient redis, DbRef playerRef, CancellationToken cancellationToken) => (await CacheManager.LookupOrRetrieveAsync(playerRef, redis, async (d, token) => await redis.GetAsync<Player>($"mudpie::player:{d}"), cancellationToken))?.DataObject;
 
         /// <inheritdoc />
         public override bool Equals(object obj)
@@ -111,6 +111,7 @@ namespace Mudpie.Server.Data
 
             // If parameter cannot be cast to Player return false.
             var p = obj as Player;
+
             // ReSharper disable once RedundantCast
             if ((object)p == null)
             {

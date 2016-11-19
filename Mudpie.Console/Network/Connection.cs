@@ -80,14 +80,7 @@ namespace Mudpie.Console.Network
         /// </summary>
         [NotNull]
         private readonly StringBuilder builder = new StringBuilder();
-
-        /// <summary>
-        /// For commands that handle conversational request-replies, this is a reference to the
-        /// command that should handle new input received by the main process loop.
-        /// </summary>
-        [CanBeNull]
-        private CommandProcessingResult inProcessCommand;
-
+        
         /// <summary>
         /// The handler that receives messages while the <see cref="Mode"/> is set to <see cref="ConnectionMode.InteractiveProgram"/>
         /// </summary>
@@ -276,16 +269,7 @@ namespace Mudpie.Console.Network
                             content.TrimEnd('\r', '\n'));
                     }
 
-                    if (this.inProcessCommand?.MessageHandler != null)
-                    {
-                        // Ongoing read - don't parse it for commands
-                        this.inProcessCommand = await this.inProcessCommand.MessageHandler(content, this.inProcessCommand);
-                        if (this.inProcessCommand != null && this.inProcessCommand.IsQuitting)
-                        {
-                            this.inProcessCommand = null;
-                        }
-                    }
-                    else if (this.Mode == ConnectionMode.InteractiveProgram)
+                    if (this.Mode == ConnectionMode.InteractiveProgram)
                     {
                         // Send input instead to the program bound to this connection
                         Debug.Assert(this.programInputHandler != null, "this._programInputHandler != null");
@@ -332,6 +316,44 @@ namespace Mudpie.Console.Network
         {
             return await this.SendInternalAsync(string.Format(CultureInfo.InvariantCulture, format, args), cancellationToken);
         }
+        
+        /// <summary>
+        /// Redirects input from the connection to a <see cref="Program"/> input handler, running in a <see cref="Scripting.Engine"/>
+        /// </summary>
+        /// <param name="inputHandler">The input handler that receives the redirect <see cref="Player"/> input</param>
+        internal void RedirectInputToProgram([NotNull] Action<string> inputHandler)
+        {
+            this.programInputHandler = inputHandler;
+            this.Mode = ConnectionMode.InteractiveProgram;
+        }
+
+        /// <summary>
+        /// Returns input back to the normal message <see cref="Process"/> loop
+        /// </summary>
+        internal void ResetInputRedirection()
+        {
+            this.Mode = ConnectionMode.Normal;
+            this.programInputHandler = null;
+        }
+
+        /// <summary>
+        /// Permanently terminates the connection
+        /// </summary>
+        /// <returns>A task object used for asynchronous process</returns>
+        [NotNull]
+        internal async Task ShutdownAsync()
+        {
+            if (this.client.Connected)
+            {
+                var cts = new CancellationTokenSource(5000); // 5 seconds
+                await this.SendAsync("GOODBYE!\r\n", cts.Token);
+                this.client.Client?.Shutdown(SocketShutdown.Both);
+                this.client.Close();
+                this.client.Dispose();
+            }
+
+            this.server.RemoveConnection(this);
+        }
 
         /// <summary>
         /// Processing subroutine to handle incoming messages from a connection's <see cref="Process"/> command
@@ -365,10 +387,6 @@ namespace Mudpie.Console.Network
                     if (!result.IsHandled)
                     {
                         await this.SendAsync("500 Unknown command\r\n", cancellationToken);
-                    }
-                    else if (result.MessageHandler != null)
-                    {
-                        this.inProcessCommand = result;
                     }
                     else if (result.IsQuitting)
                     {
@@ -525,7 +543,7 @@ namespace Mudpie.Console.Network
                             {
                                 var context =
                                     await
-                                        this.server.ScriptingEngine.RunProgramAsync<int>(
+                                        this.server.ScriptingEngine.RunProgramAsync<object>(
                                             target.DbRef,
                                             this,
                                             verbReferenceAndObject.Item2,
@@ -592,6 +610,7 @@ namespace Mudpie.Console.Network
         /// <param name="data">The data to send to the client</param>
         /// <returns>A value indicating whether or not the transmission was successful</returns>
         /// <param name="cancellationToken">A cancellation token used to abort the processing loop</param>
+        [NotNull]
         private async Task<bool> SendInternalAsync([NotNull] string data, CancellationToken cancellationToken)
         {
             // Convert the string data to byte data using ASCII encoding.
@@ -656,44 +675,6 @@ namespace Mudpie.Console.Network
                 return false;
             }
         }
-
-        /// <summary>
-        /// Redirects input from the connection to a <see cref="Program"/> input handler, running in a <see cref="Scripting.Engine"/>
-        /// </summary>
-        /// <param name="inputHandler">The input handler that recieves the redirect <see cref="Player"/> input</param>
-        public void RedirectInputToProgram([NotNull] Action<string> inputHandler)
-        {
-            this.programInputHandler = inputHandler;
-            this.Mode = ConnectionMode.InteractiveProgram;
-        }
-
-        /// <summary>
-        /// Returns input back to the normal message <see cref="Process"/> loop
-        /// </summary>
-        public void ResetInputRedirection()
-        {
-            this.Mode = ConnectionMode.Normal;
-            this.programInputHandler = null;
-        }
-
-        /// <summary>
-        /// Permanently terminates the connection
-        /// </summary>
-        /// <returns>A task object used for asynchronous process</returns>
-        public async Task ShutdownAsync()
-        {
-            if (this.client.Connected)
-            {
-                var cts = new CancellationTokenSource(5000); // 5 seconds
-                await this.SendAsync("GOODBYE!\r\n", cts.Token);
-                this.client.Client?.Shutdown(SocketShutdown.Both);
-                this.client.Close();
-                this.client.Dispose();
-            }
-
-            this.server.RemoveConnection(this);
-        }
-
         #endregion
 
         #region Commands

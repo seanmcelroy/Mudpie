@@ -6,7 +6,6 @@
 //   A manager class for handling the temporary
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Server.Data
 {
     using System;
@@ -89,7 +88,7 @@ namespace Mudpie.Server.Data
                 return null;
             }
 
-            var composition = await ComposedObject<T>.CreateAsync(redis, (T)obj, cancellationToken);
+            var composition = await ComposedObject<T>.CreateAsync(redis, obj, cancellationToken);
             if (composition.Item1)
             {
                 // The composition was perfect!  No unresolved references, so cache it as-is.
