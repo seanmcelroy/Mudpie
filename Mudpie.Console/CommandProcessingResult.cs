@@ -6,7 +6,6 @@
 //   A command processing result is a return type from methods that handle command input from interactive users on a connection
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console
 {
     using System;

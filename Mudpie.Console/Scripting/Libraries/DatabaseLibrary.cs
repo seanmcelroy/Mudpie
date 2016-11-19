@@ -6,7 +6,6 @@
 //   A set of routines that allow a script to modify objects in the underlying data store
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Scripting.Libraries
 {
     using System.Threading;
@@ -29,6 +28,7 @@ namespace Mudpie.Console.Scripting.Libraries
         /// The logging utility instance to use to log events from this class
         /// </summary>
         [NotNull]
+
         // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ObjectBase));
 
@@ -115,7 +115,7 @@ namespace Mudpie.Console.Scripting.Libraries
                 return false;
             }
 
-            if (!target.Owner.Equals(this.caller))
+            if (!target.Owner.Equals(this.caller.DbRef))
             {
                 return false;
             }

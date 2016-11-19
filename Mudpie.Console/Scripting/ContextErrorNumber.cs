@@ -6,7 +6,6 @@
 //   If an execution <see cref="Context{T}" /> has ended in error, this is the general category of the error state
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Scripting
 {
     /// <summary>

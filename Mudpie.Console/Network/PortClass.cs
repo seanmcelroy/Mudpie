@@ -6,7 +6,6 @@
 //   The type of port (encrypted or plain-text) of a connection
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Network
 {
     /// <summary>

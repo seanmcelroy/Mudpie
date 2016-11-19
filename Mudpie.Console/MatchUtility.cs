@@ -6,7 +6,6 @@
 //   A series of utility methods for finding objects a player references in their commands
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console
 {
     using System;
@@ -55,7 +54,7 @@ namespace Mudpie.Console
                 var partialMatch = DbRef.FailedMatch;
                 ObjectBase lastPartialMatchObject = null;
 
-                var directObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(directObjectRef, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                var directObject = await CacheManager.LookupOrRetrieveAsync(directObjectRef, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                 if (directObject == null)
                 {
                     return new Tuple<DbRef, ObjectBase>(exactMatch, null);
@@ -88,7 +87,7 @@ namespace Mudpie.Console
                 var partialMatch = DbRef.FailedMatch;
                 ObjectBase lastPartialMatchObject = null;
 
-                var indirectObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(indirectObjectRef, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                var indirectObject = await CacheManager.LookupOrRetrieveAsync(indirectObjectRef, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                 if (indirectObject == null)
                 {
                     return new Tuple<DbRef, ObjectBase>(exactMatch, null);
@@ -175,6 +174,7 @@ namespace Mudpie.Console
         /// <returns>
         /// The <see cref="DbRef"/> of the object, if it could be located
         /// </returns>
+        [NotNull, ItemNotNull, Pure]
         private static async Task<Tuple<DbRef, ObjectBase>> MatchTypeAsync<T>([CanBeNull] Player player, [NotNull] ICacheClient redis, [CanBeNull] string text, CancellationToken cancellationToken)
             where T : ObjectBase
         {
@@ -193,7 +193,7 @@ namespace Mudpie.Console
             {
                 foreach (var playerItem in player.Contents)
                 {
-                    var playerItemObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(playerItem, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                    var playerItemObject = await CacheManager.LookupOrRetrieveAsync(playerItem, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                     if (playerItemObject != null)
                     {
                         MatchTypeOnObject<T, ObjectBase>(
@@ -210,7 +210,7 @@ namespace Mudpie.Console
             // Places to check - #2 - The room the player is in
             if (player != null)
             {
-                var playerLocationObject = await CacheManager.LookupOrRetrieveAsync<ObjectBase>(player.Location, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
+                var playerLocationObject = await CacheManager.LookupOrRetrieveAsync(player.Location, redis, async (d, token) => await ObjectBase.GetAsync(redis, d, token), cancellationToken);
                 if (playerLocationObject?.Contents != null)
                 {
                     foreach (var roomItemObject in playerLocationObject.Contents)

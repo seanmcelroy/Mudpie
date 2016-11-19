@@ -6,7 +6,6 @@
 //   A utility class that provides extension methods to log4net that allow for Trace and Verbose logging levels.
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console
 {
     using System;

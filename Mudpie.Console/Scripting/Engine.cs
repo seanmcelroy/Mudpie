@@ -6,7 +6,6 @@
 //   The scripting engine is the master factory of execution contexts for asynchronously running programs in the MUD
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Scripting
 {
     using System.Diagnostics;
@@ -16,6 +15,7 @@ namespace Mudpie.Console.Scripting
 
     using JetBrains.Annotations;
 
+    using Mudpie.Console.Network;
     using Mudpie.Scripting.Common;
     using Server.Data;
 
@@ -40,7 +40,7 @@ namespace Mudpie.Console.Scripting
         {
             this.redis = redis;
         }
-        
+
         /// <summary>
         /// Gets the client proxy to the data store instance used by the engine
         /// </summary>
@@ -67,7 +67,7 @@ namespace Mudpie.Console.Scripting
         [NotNull, ItemNotNull]
         public async Task<Context<T>> RunProgramAsync<T>(
             DbRef programRef,
-            [CanBeNull] Network.Connection connection,
+            [CanBeNull] Connection connection,
             [NotNull] ObjectBase thisObject,
             [NotNull] ObjectBase caller,
             [CanBeNull] string verb,

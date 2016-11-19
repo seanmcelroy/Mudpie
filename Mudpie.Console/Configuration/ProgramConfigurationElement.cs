@@ -6,7 +6,6 @@
 //   A configuration element that specifies where the MUD should look for programs to auto-load on startup to seed the database
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Configuration
 {
     using System.Configuration;

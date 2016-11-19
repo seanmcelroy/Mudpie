@@ -1,2 +1,15 @@
-﻿PlayerOutput.WriteLine($"{PlayerLocation?.Name}({PlayerLocation?.DbRef})");
-PlayerOutput.WriteLine(PlayerLocation?.Description);
+﻿if (DirectObject == null)
+{
+	if (string.IsNullOrWhiteSpace(DirectObjectString))
+	{
+		PlayerOutput.WriteLine($"{PlayerLocation?.Name}({PlayerLocation?.DbRef})");
+		PlayerOutput.WriteLine(PlayerLocation?.Description);
+	}
+	else {
+		PlayerOutput.WriteLine($"I don't see {DirectObjectString} here.");
+	}
+	return 0;
+}
+
+PlayerOutput.WriteLine($"{DirectObject.Name}({DirectObject.DbRef})");
+PlayerOutput.WriteLine(DirectObject.Description);

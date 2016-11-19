@@ -6,7 +6,6 @@
 //   A configuration element that specifies a TCP port on which the process will listen for incoming requests
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Configuration
 {
     using System.Configuration;

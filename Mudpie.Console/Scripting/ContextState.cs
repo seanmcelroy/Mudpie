@@ -6,7 +6,6 @@
 //   The current state of the execution context
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Scripting
 {
     /// <summary>

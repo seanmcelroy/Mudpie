@@ -7,7 +7,6 @@
 //   with players
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Network
 {
     using System;
@@ -27,6 +26,8 @@ namespace Mudpie.Console.Network
 
     using Mudpie.Server.Data;
 
+    using Scripting;
+
     /// <summary>
     /// The server is the holder of <see cref="Listener"/> and <see cref="Connection"/> objects used to manage network communications
     /// with players
@@ -37,6 +38,7 @@ namespace Mudpie.Console.Network
         /// The logging utility instance to use to log events from this class
         /// </summary>
         [NotNull]
+
         // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Server));
 
@@ -67,7 +69,7 @@ namespace Mudpie.Console.Network
         /// <param name="scriptingEngine">
         /// The scripting engine used to execute programs invoked or triggered by the user
         /// </param>
-        public Server([NotNull] int[] clearPorts, [NotNull] Scripting.Engine scriptingEngine)
+        public Server([NotNull] int[] clearPorts, [NotNull] Engine scriptingEngine)
         {
             if (clearPorts == null)
             {
@@ -117,7 +119,7 @@ namespace Mudpie.Console.Network
         /// Gets the scripting engine that will handle commands sent by connections to the server
         /// </summary>
         [NotNull]
-        internal Scripting.Engine ScriptingEngine { get; }
+        internal Engine ScriptingEngine { get; }
 
         /// <summary>
         /// Gets the ports over which clear-text communications are permitted
@@ -126,6 +128,7 @@ namespace Mudpie.Console.Network
         private int[] ClearPorts { get; }
 
         #region Connection and IO
+
         /// <summary>
         /// Starts listener threads to begin processing requests
         /// </summary>
@@ -140,7 +143,7 @@ namespace Mudpie.Console.Network
                                          {
                                              var voidRoom =
                                                  await
-                                                     CacheManager.LookupOrRetrieveAsync<Room>(
+                                                     CacheManager.LookupOrRetrieveAsync(
                                                          1,
                                                          this.ScriptingEngine.Redis,
                                                          async (d, token) => await Room.GetAsync(this.ScriptingEngine.Redis, d, token),
@@ -276,6 +279,7 @@ namespace Mudpie.Console.Network
                     connection.Identity.Username);
             }
         }
+
         #endregion
     }
 }

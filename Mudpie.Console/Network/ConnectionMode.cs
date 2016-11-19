@@ -6,7 +6,6 @@
 //   The current input mode of an establish connection
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Network
 {
     /// <summary>

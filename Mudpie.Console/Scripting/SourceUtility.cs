@@ -1,4 +1,12 @@
-﻿namespace Mudpie.Console.Scripting
+﻿// --------------------------------------------------------------------------------------------------------------------
+// <copyright file="SourceUtility.cs" company="Sean McElroy">
+//   Released under the terms of the MIT License
+// </copyright>
+// <summary>
+//   Utility classes for reading script source files from disk, local storage, and memory
+// </summary>
+// --------------------------------------------------------------------------------------------------------------------
+namespace Mudpie.Console.Scripting
 {
     using System;
     using System.Diagnostics;
@@ -9,6 +17,9 @@
 
     using JetBrains.Annotations;
 
+    /// <summary>
+    /// Utility classes for reading script source files from disk, local storage, and memory
+    /// </summary>
     internal static class SourceUtility
     {
         [NotNull, ItemCanBeNull, Pure]

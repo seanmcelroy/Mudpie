@@ -6,7 +6,6 @@
 //   A listener is a network server process that listens for and accepts incoming <see cref="Network.Connection" />s
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Network
 {
     using System;

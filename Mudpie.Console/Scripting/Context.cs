@@ -6,7 +6,6 @@
 //   An execution context instance of a <see cref="Script" /> running in an <see cref="Engine" />
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Scripting
 {
     using System;
@@ -15,6 +14,8 @@ namespace Mudpie.Console.Scripting
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
+
+    using Mudpie.Server.Data;
 
     /// <summary>
     /// An execution context instance of a <see cref="Microsoft.CodeAnalysis.Scripting.Script"/> running in an <see cref="Engine"/>
@@ -26,13 +27,13 @@ namespace Mudpie.Console.Scripting
         /// Gets or sets the script to execute
         /// </summary>
         [CanBeNull]
-        private readonly Server.Data.Program program;
+        private readonly Program program;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Context{T}"/> class.
         /// </summary>
         /// <param name="program">The script to execute</param>
-        public Context([NotNull] Server.Data.Program program)
+        public Context([NotNull] Program program)
         {
             if (program == null) throw new ArgumentNullException(nameof(program));
 
@@ -47,7 +48,7 @@ namespace Mudpie.Console.Scripting
         /// <param name="errorNumber">The general category of error that occurred</param>
         /// <param name="errorMessage">The specific error message that was recorded</param>
         /// <exception cref="ArgumentNullException">Thrown when a null error message is supplied to this constructor</exception>
-        private Context([CanBeNull] Server.Data.Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
+        private Context([CanBeNull] Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
         {
             if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
 
@@ -98,11 +99,37 @@ namespace Mudpie.Console.Scripting
         /// </returns>
         [NotNull, Pure]
         public static Context<T> Error(
-            [CanBeNull] Server.Data.Program program,
+            [CanBeNull] Program program,
             ContextErrorNumber errorNumber,
             [NotNull] string errorMessage)
         {
             return new Context<T>(program, errorNumber, errorMessage);
+        }
+
+        [NotNull]
+        public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken)
+        {
+            if (this.program == null)
+            {
+                throw new InvalidOperationException("this.program == null");
+            }
+
+            this.State = ContextState.Running;
+            try
+            {
+                var state = await this.program.Compile().RunAsync(globals, cancellationToken);
+                if (state.ReturnValue != null)
+                {
+                    this.ReturnValue = (T)state.ReturnValue;
+                }
+
+                this.State = ContextState.Completed;
+            }
+            catch (Exception ex)
+            {
+                this.State = ContextState.Errored;
+                this.ErrorMessage = ex.ToString();
+            }
         }
 
         internal void AppendFeedback([NotNull] string feedback)
@@ -117,32 +144,6 @@ namespace Mudpie.Console.Scripting
                     else this.Output.Enqueue(lines[i]);
             }
             else this.Output.Enqueue(feedback);
-        }
-
-        [NotNull]
-        public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken)
-        {
-            if (this.program == null)
-            {
-                throw new InvalidOperationException("this.program == null");
-            }
-
-
-            this.State = ContextState.Running;
-            try
-            {
-                var state = await this.program.Compile().RunAsync(globals, cancellationToken);
-                if (state.ReturnValue != null)
-                {
-                    this.ReturnValue = (T)state.ReturnValue;
-                }
-                this.State = ContextState.Completed;
-            }
-            catch (Exception ex)
-            {
-                this.State = ContextState.Errored;
-                this.ErrorMessage = ex.ToString();
-            }
         }
     }
 }

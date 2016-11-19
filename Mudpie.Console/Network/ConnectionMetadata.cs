@@ -6,7 +6,6 @@
 //   Metadata about a connection from a client to the server instance
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Network
 {
     using System;

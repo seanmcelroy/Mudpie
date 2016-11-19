@@ -90,9 +90,8 @@
 
                             godPlayer.SetPassword(godPassword);
                             await godPlayer.SaveAsync(redis, server.CancellationToken);
-
-                            // LOOK
                             {
+                                // LOOK
                                 var lookProgramSource = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, "look.mcs");
                                 Debug.Assert(lookProgramSource != null, "lookProgramSource != null");
                                 var lookProgram = new Mudpie.Server.Data.Program("look.msc", godPlayer.DbRef, lookProgramSource)
@@ -164,7 +163,7 @@
                             godPlayer = await Player.GetAsync(redis, 2, server.CancellationToken);
                             Debug.Assert(godPlayer != null, "godPlayer != null");
 
-                            var godComposed = await CacheManager.LookupOrRetrieveAsync<Player>(2, redis, async (d, token) => await Player.GetAsync(redis, d, token), server.CancellationToken);
+                            var godComposed = await CacheManager.LookupOrRetrieveAsync(2, redis, async (d, token) => await Player.GetAsync(redis, d, token), server.CancellationToken);
                             Debug.Assert(godComposed != null, "godComposed != null");
                         }
 
@@ -182,7 +181,6 @@
                                 await redis.RemoveAsync($"mudpie::player:{playerId}");
                             await redis.RemoveAsync("mudpie::players");
                         }*/
-
                         return 0;
                     }).Wait();
 

@@ -6,7 +6,6 @@
 //   A collection of <see cref="PortConfigurationElement"/> records
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Configuration
 {
     using System.Collections.Generic;

@@ -6,7 +6,6 @@
 //   The primary configuration section for the server instance
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Configuration
 {
     using System.Configuration;
@@ -16,6 +15,7 @@ namespace Mudpie.Console.Configuration
     /// The primary configuration section for the server instance
     /// </summary>
     [PublicAPI]
+
     // ReSharper disable once InconsistentNaming
     internal class MudpieConfigurationSection : ConfigurationSection
     {

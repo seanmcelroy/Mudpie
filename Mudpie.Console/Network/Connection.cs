@@ -137,6 +137,7 @@ namespace Mudpie.Console.Network
         }
 
         #region Authentication
+
         /// <summary>
         /// Gets the identity of the player on this connection, if the user has authenticated with the CONNECT command
         /// </summary>
@@ -199,6 +200,7 @@ namespace Mudpie.Console.Network
         private bool ShowData { get; }
 
         #region IO and Connection Management
+
         /// <summary>
         /// Processing loop to handle incoming bytes on a connection
         /// </summary>
@@ -409,16 +411,16 @@ namespace Mudpie.Console.Network
 
                 string prep = null;
                 var prepFoundStart = -1;
-                foreach (var word in words.Skip(1))
+                foreach (var word in words.Skip(1).Where(w => w != null))
                 {
                     var prepMatch = prepositions
-                        .Select(p => Regex.Match(word, @"\b" + p + @"\b", RegexOptions.IgnoreCase))
+                        .Select(p => Regex.Match(word, @"(\b" + Regex.Escape(p) + @"\b|\=)", RegexOptions.IgnoreCase))
                         .FirstOrDefault(p => p != null && p.Success);
 
                     if (verb != null && prepMatch != null)
                     {
-                        prep = word;
-                        prepFoundStart = content.IndexOf(word, verb.Length, StringComparison.Ordinal);
+                        prep = word.IndexOf("=", StringComparison.Ordinal) > -1 ? "=" : word;
+                        prepFoundStart = content.IndexOf(prep, verb.Length, StringComparison.Ordinal);
                     }
 
                     if (prep != null)
@@ -441,6 +443,13 @@ namespace Mudpie.Console.Network
                             .Replace(@"\u001", string.Empty)
                             .Replace("\"", string.Empty)
                             .Trim();
+
+                    // For formats like 'look at chair' rather than 'look chair'
+                    if (string.IsNullOrWhiteSpace(directObject) && !string.IsNullOrWhiteSpace(indirectObject))
+                    {
+                        directObject = indirectObject;
+                        indirectObject = null;
+                    }
                 }
                 else if (verb != null)
                 {
@@ -454,7 +463,6 @@ namespace Mudpie.Console.Network
                 Logger.Verbose(
                     $"{content.TrimEnd('\r', '\n')} => VERB: {verb}, DO: {directObject}, PREP: {prep}, IO: {indirectObject}");
 
-                #region Matching
                 var directObjectReferenceAndObject = directObject == null
                                                 ? new Tuple<DbRef, ObjectBase>(DbRef.FailedMatch, null)
                                                 : await
@@ -484,8 +492,6 @@ namespace Mudpie.Console.Network
                                                   indirectObjectReferenceAndObject.Item1,
                                                   cancellationToken);
                 Logger.Verbose($"{verb} => REF: {verbReferenceAndObject.Item1}");
-
-                #endregion
 
                 if (verbReferenceAndObject.Item1.Equals(DbRef.Ambiguous))
                 {
@@ -687,9 +693,11 @@ namespace Mudpie.Console.Network
 
             this.server.RemoveConnection(this);
         }
+
         #endregion
 
         #region Commands
+
         /// <summary>
         /// Handles the CONNECT command from a client, which allows a client to authenticate against an existing
         /// player record for a username and a password

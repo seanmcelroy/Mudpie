@@ -6,7 +6,6 @@
 //   A collection of <see cref="ProgramConfigurationElement" /> records
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
-
 namespace Mudpie.Console.Configuration
 {
     using System.Collections.Generic;
