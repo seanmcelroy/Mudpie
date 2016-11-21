@@ -105,6 +105,11 @@ namespace Mudpie.Server.Data
         /// </summary>
         public DbRef Parent { get; set; } = DbRef.Nothing;
 
+        /// <summary>
+        /// Gets or sets the properties on the object
+        /// </summary>
+        public Property[] Properties { get; set; } = new Property[0];
+
         [NotNull, ItemNotNull]
         public static async Task<T> CreateAsync<T>([NotNull] ICacheClient redis) where T : ObjectBase, new()
         {

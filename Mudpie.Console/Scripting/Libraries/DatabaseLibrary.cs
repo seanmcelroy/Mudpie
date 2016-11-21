@@ -8,6 +8,9 @@
 // --------------------------------------------------------------------------------------------------------------------
 namespace Mudpie.Console.Scripting.Libraries
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
     using System.Threading;
 
     using JetBrains.Annotations;
@@ -121,7 +124,70 @@ namespace Mudpie.Console.Scripting.Libraries
             }
 
             target.Name = newName;
-            return target.SaveAsync(this.redis, cts.Token).Wait(5000);
+            var saveAsyncTask = target.SaveAsync(this.redis, cts.Token);
+            if (!saveAsyncTask.Wait(5000))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <inheritdoc />
+        public bool SetProperty(DbRef reference, string propertyName, object propertyValue)
+        {
+            var cts = new CancellationTokenSource(5000); // 5 seconds
+
+            var getAsyncTask = ObjectBase.GetAsync(this.redis, reference, cts.Token); // 5 seconds
+            if (!getAsyncTask.Wait(5000))
+            {
+                return false;
+            }
+
+            var target = getAsyncTask.Result;
+            if (target == null)
+            {
+                return false;
+            }
+
+            var existingProperty = target.Properties?.FirstOrDefault(p => p != null && string.Compare(p.Name, propertyName, StringComparison.OrdinalIgnoreCase) == 0);
+            if (existingProperty == null)
+            {
+                // If unset and property to set to is null, don't do anything.
+                if (propertyValue == null || DbRef.Nothing.Equals(propertyValue))
+                {
+                    return false;
+                }
+
+                // TODO: We currently let anyone create an unset property on any other object.  That should change, but how.
+                var newProperty = new Property
+                                      {
+                                          Name = propertyName,
+                                          Owner = caller.DbRef,
+                                          Value = propertyValue
+                                      };
+
+                target.Properties = target.Properties == null ? new[] { newProperty } : (new List<Property>(target.Properties) { newProperty }).ToArray();
+                var saveAsyncTask = target.SaveAsync(this.redis, cts.Token);
+                if (!saveAsyncTask.Wait(5000))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+
+            // Property does exist
+
+            // If I am not the owner, then to change this property, it must be publically writable
+            if (!target.Owner.Equals(this.caller.DbRef))
+            {
+                return false;
+            }
+            
+            // TODO....
+
+            throw new System.NotImplementedException();
         }
     }
 }

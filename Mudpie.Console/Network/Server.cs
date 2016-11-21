@@ -200,6 +200,9 @@ namespace Mudpie.Console.Network
             }
         }
 
+        /// <summary>
+        /// Stops the server from listening to new connections and terminates all existing connections
+        /// </summary>
         public void Stop()
         {
             this.cts.Cancel();

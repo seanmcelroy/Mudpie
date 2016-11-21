@@ -46,6 +46,146 @@ namespace Mudpie.Console.Scripting
         /// </summary>
         internal ICacheClient Redis => this.redis;
 
+        public async Task<Context<T>> EvalAsync<T>(
+            [NotNull] string statement,
+            [CanBeNull] Connection connection,
+            [NotNull] ObjectBase thisObject,
+            [NotNull] ObjectBase caller,
+            [CanBeNull] string verb,
+            [CanBeNull] string argString,
+            [CanBeNull] string[] args,
+            [CanBeNull] string directObjectString,
+            [CanBeNull] ObjectBase directObject,
+            [CanBeNull] string prepositionString,
+            [CanBeNull] string indirectObjectString,
+            [CanBeNull] ObjectBase indirectObject,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace("statement"))
+            {
+                return Context<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No statement was provided for evaluation");
+            }
+
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+            if (connection?.Identity == null)
+            {
+                return Context<T>.Error(null, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
+            }
+
+            var context = new Context<T>(program);
+            using (var outputStream = new MemoryStream(2048))
+            using (var outputStreamReader = new StreamReader(outputStream))
+            using (var outputStreamWriter = new StreamWriter(outputStream))
+
+            // Don't try to combine this with the method parameter version
+            using (var outputCancellationTokenSource = new CancellationTokenSource())
+            {
+                Debug.Assert(outputStream != null, "outputStream != null");
+                Debug.Assert(outputStreamWriter != null, "outputStreamWriter != null");
+
+                var scriptGlobals = new ContextGlobals(thisObject, caller, outputStreamWriter, new Libraries.DatabaseLibrary(caller, this.redis))
+                {
+                    ArgString = argString,
+                    Args = args,
+                    DirectObject = directObject,
+                    DirectObjectString = directObjectString,
+                    IndirectObject = indirectObject,
+                    IndirectObjectString = indirectObjectString,
+                    Player = connection?.Identity,
+                    PlayerLocation = connection?.Identity == null ? null : (await CacheManager.LookupOrRetrieveAsync<ObjectBase>(connection.Identity.Location, this.Redis, async (d, token) => await Room.GetAsync(this.Redis, d, token), cancellationToken))?.DataObject,
+                    PrepositionString = prepositionString,
+                    Verb = verb
+                };
+
+                var outputLastPositionRead = 0L;
+
+                // OUTPUT
+                var appendOutputTask = new Task(
+                    async () =>
+                    {
+                        while (context.State == ContextState.Loaded || context.State == ContextState.Running)
+                        {
+                            if (context.State == ContextState.Running)
+                            {
+                                // Input
+                                await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
+
+                                // Output
+                                await scriptGlobals.PlayerOutput.FlushAsync();
+                                outputStream.Position = Interlocked.Read(ref outputLastPositionRead);
+                                var outputString = await outputStreamReader.ReadToEndAsync();
+                                if (!string.IsNullOrEmpty(outputString))
+                                {
+                                    context.AppendFeedback(outputString);
+                                }
+
+                                Interlocked.Exchange(ref outputLastPositionRead, outputStream.Position);
+
+                                // Send output to trigger, if capable of receiving.
+                                while (connection != null && context.Output.Count > 0)
+                                {
+                                    var nextOutput = context.Output.Dequeue();
+                                    if (nextOutput != null)
+                                    {
+                                        await connection.SendAsync(nextOutput, cancellationToken);
+                                    }
+                                }
+                            }
+
+                            Thread.Sleep(100);
+                        }
+                    },
+                outputCancellationTokenSource.Token);
+                appendOutputTask.Start();
+
+                // INPUT
+                if (program.Interactive)
+                {
+                    connection?.RedirectInputToProgram(
+                        async input =>
+                        {
+                            await scriptGlobals.PlayerInputWriterInternal.WriteAsync(input);
+                            await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
+                        });
+                }
+
+                try
+                {
+                    await context.RunAsync(scriptGlobals, cancellationToken);
+                }
+                finally
+                {
+                    connection?.ResetInputRedirection();
+                }
+
+                outputCancellationTokenSource.Cancel();
+
+                // Do one last time to get any last feedback
+
+                // Input
+                await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
+
+                // Output
+                await scriptGlobals.PlayerOutput.FlushAsync();
+                outputStream.Position = Interlocked.Read(ref outputLastPositionRead);
+                var feedbackString2 = await outputStreamReader.ReadToEndAsync();
+                Interlocked.Exchange(ref outputLastPositionRead, outputStream.Position);
+                if (!string.IsNullOrEmpty(feedbackString2))
+                {
+                    context.AppendFeedback(feedbackString2);
+                }
+
+                // Send output to trigger, if capable of receiving.
+                while (connection != null && context.Output.Count > 0)
+                {
+                    await connection.SendAsync(context.Output.Dequeue(), cancellationToken);
+                }
+            }
+
+            return context;
+
+        }
+
         /// <summary>
         /// Executes the script of a program
         /// </summary>
@@ -78,7 +218,7 @@ namespace Mudpie.Console.Scripting
             [CanBeNull] string prepositionString,
             [CanBeNull] string indirectObjectString,
             [CanBeNull] ObjectBase indirectObject,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken)
         {
             if (programRef.Equals(DbRef.Nothing))
             {
@@ -104,6 +244,8 @@ namespace Mudpie.Console.Scripting
             using (var outputStream = new MemoryStream(2048))
             using (var outputStreamReader = new StreamReader(outputStream))
             using (var outputStreamWriter = new StreamWriter(outputStream))
+
+            // Don't try to combine this with the method parameter version
             using (var outputCancellationTokenSource = new CancellationTokenSource())
             {
                 Debug.Assert(outputStream != null, "outputStream != null");
@@ -160,7 +302,7 @@ namespace Mudpie.Console.Scripting
 
                                 Thread.Sleep(100);
                             }
-                        }, 
+                        },
                 outputCancellationTokenSource.Token);
                 appendOutputTask.Start();
 

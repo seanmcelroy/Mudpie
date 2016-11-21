@@ -119,13 +119,6 @@ namespace Mudpie.Server.Data
                                                       mscorlib,
                                                       systemCore,
                                                       scriptingCommon);
-                                                  
-                                                  // HACK: Special case... eval needs to be a bit 'meta'.
-                                                  if (string.Equals(this.Name, "eval.msc", StringComparison.Ordinal))
-                                                  {
-                                                      // ReSharper disable once PossibleNullReferenceException
-                                                      scriptOptions = scriptOptions.AddReferences(typeof(Microsoft.CodeAnalysis.Accessibility).Assembly, typeof(Microsoft.CodeAnalysis.CSharp.CSharpExtensions).Assembly, typeof(CSharpScript).Assembly, typeof(ScriptOptions).Assembly).AddImports("Microsoft.CodeAnalysis.CSharp.Scripting", "Microsoft.CodeAnalysis.Scripting");
-                                                  }
 
                                                   var roslynScript = CSharpScript.Create<object>(
                                                       this.ScriptSource,

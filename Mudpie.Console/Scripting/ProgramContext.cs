@@ -23,54 +23,39 @@ namespace Mudpie.Console.Scripting
     /// An execution context instance of a <see cref="Microsoft.CodeAnalysis.Scripting.Script"/> running in an <see cref="Engine"/>
     /// </summary>
     /// <typeparam name="T">The return type of the script</typeparam>
-    internal abstract class Context<T>
+    internal class ProgramContext<T> : Context<T>
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="Context{T}"/> class.
+        /// Gets or sets the script to execute
+        /// </summary>
+        [CanBeNull]
+        private readonly Program program;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ProgramContext{T}"/> class.
         /// </summary>
         /// <param name="program">The script to execute</param>
-        protected Context()
+        public ProgramContext([NotNull] Program program)
         {
-            this.State = ContextState.Loaded;
+            if (program == null) throw new ArgumentNullException(nameof(program));
+
+            this.program = program;
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Context{T}"/> class.
+        /// Initializes a new instance of the <see cref="ProgramContext{T}"/> class.
         /// </summary>
+        /// <param name="program">The program that was executed</param>
         /// <param name="errorNumber">The general category of error that occurred</param>
         /// <param name="errorMessage">The specific error message that was recorded</param>
         /// <exception cref="ArgumentNullException">Thrown when a null error message is supplied to this constructor</exception>
-        protected Context(ContextErrorNumber errorNumber, [NotNull] string errorMessage)
+        private ProgramContext([CanBeNull] Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
+            : base(errorNumber, errorMessage)
         {
             if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
 
-            this.ErrorNumber = errorNumber;
-            this.ErrorMessage = errorMessage;
-            this.State = ContextState.Errored;
+            this.program = program;
         }
-
-        /// <summary>
-        /// Gets the current state of the execution context
-        /// </summary>
-        public ContextState State { get; private set; }
-
-        /// <summary>
-        /// Gets the return value from the completed execution context
-        /// </summary>
-        [CanBeNull]
-        public T ReturnValue { get; private set; }
-
-        /// <summary>
-        /// Gets the general category of the error, if one was observed
-        /// </summary>
-        [CanBeNull]
-        public ContextErrorNumber? ErrorNumber { get; private set; }
-
-        /// <summary>
-        /// Gets the specific message for the error, if one was observed
-        /// </summary>
-        [CanBeNull]
-        public string ErrorMessage { get; private set; }
 
         /// <summary>
         /// Gets the name of the program
@@ -94,12 +79,12 @@ namespace Mudpie.Console.Scripting
         /// The <see cref="Scripting.Context{T}"/> object representing the error conditions
         /// </returns>
         [NotNull, Pure]
-        public static Context<T> Error(
+        public static ProgramContext<T> Error(
             [CanBeNull] Program program,
             ContextErrorNumber errorNumber,
             [NotNull] string errorMessage)
         {
-            return new Context<T>(program, errorNumber, errorMessage);
+            return new ProgramContext<T>(program, errorNumber, errorMessage);
         }
 
         [NotNull]
@@ -133,7 +118,7 @@ namespace Mudpie.Console.Scripting
             }
         }
 
-        protected internal void AppendFeedback([NotNull] string feedback)
+        internal void AppendFeedback([NotNull] string feedback)
         {
             if (this.Output.Count == 0 || this.Output.Peek().EndsWith("\r\n")) this.Output.Enqueue(feedback);
             else if (feedback.EndsWith("\r\n")) this.Output.Enqueue(feedback);

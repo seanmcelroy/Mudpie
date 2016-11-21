@@ -190,6 +190,8 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="Scripting\Builtin\Unauthenticated\%40dig.mcs" />
+    <Compile Include="Scripting\StatementContext.cs" />
+    <Compile Include="Scripting\ProgramContext.cs" />
     <Compile Include="Scripting\Context.cs" />
     <Compile Include="Scripting\ContextErrorNumber.cs" />
     <Compile Include="Scripting\ContextState.cs" />
@@ -204,7 +206,6 @@
     <None Include="packages.config" />
     <None Include="Scripting\Builtin\test2.prog" />
     <None Include="Scripting\Builtin\Unauthenticated\%40name.msc" />
-    <None Include="Scripting\Builtin\Unauthenticated\eval.msc" />
     <None Include="Scripting\Builtin\Unauthenticated\help.mtxt" />
     <None Include="Scripting\Builtin\Unauthenticated\look.mcs" />
     <None Include="Scripting\Builtin\Unauthenticated\marco.mcs" />

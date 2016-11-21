@@ -23,54 +23,39 @@ namespace Mudpie.Console.Scripting
     /// An execution context instance of a <see cref="Microsoft.CodeAnalysis.Scripting.Script"/> running in an <see cref="Engine"/>
     /// </summary>
     /// <typeparam name="T">The return type of the script</typeparam>
-    internal abstract class Context<T>
+    internal class StatementContext<T> : Context<T>
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="Context{T}"/> class.
+        /// Gets or sets the statement to evaluate
         /// </summary>
-        /// <param name="program">The script to execute</param>
-        protected Context()
+        [CanBeNull]
+        private readonly string statement;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StatementContext{T}"/> class.
+        /// </summary>
+        /// <param name="statement">The statement to evaluate</param>
+        public StatementContext([NotNull] string statement)
         {
-            this.State = ContextState.Loaded;
+            if (string.IsNullOrWhiteSpace(statement)) throw new ArgumentNullException(nameof(statement));
+
+            this.statement = statement;
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Context{T}"/> class.
+        /// Initializes a new instance of the <see cref="StatementContext{T}"/> class.
         /// </summary>
+        /// <param name="statement">The statement that was evaluated</param>
         /// <param name="errorNumber">The general category of error that occurred</param>
         /// <param name="errorMessage">The specific error message that was recorded</param>
         /// <exception cref="ArgumentNullException">Thrown when a null error message is supplied to this constructor</exception>
-        protected Context(ContextErrorNumber errorNumber, [NotNull] string errorMessage)
+        private StatementContext([CanBeNull] string statement, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
+            : base(errorNumber, errorMessage)
         {
             if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
 
-            this.ErrorNumber = errorNumber;
-            this.ErrorMessage = errorMessage;
-            this.State = ContextState.Errored;
+            this.statement = statement;
         }
-
-        /// <summary>
-        /// Gets the current state of the execution context
-        /// </summary>
-        public ContextState State { get; private set; }
-
-        /// <summary>
-        /// Gets the return value from the completed execution context
-        /// </summary>
-        [CanBeNull]
-        public T ReturnValue { get; private set; }
-
-        /// <summary>
-        /// Gets the general category of the error, if one was observed
-        /// </summary>
-        [CanBeNull]
-        public ContextErrorNumber? ErrorNumber { get; private set; }
-
-        /// <summary>
-        /// Gets the specific message for the error, if one was observed
-        /// </summary>
-        [CanBeNull]
-        public string ErrorMessage { get; private set; }
 
         /// <summary>
         /// Gets the name of the program
@@ -79,35 +64,29 @@ namespace Mudpie.Console.Scripting
         public string ProgramName => this.program?.Name;
 
         /// <summary>
-        /// Gets the feedback provided by the output of the executing program
-        /// </summary>
-        [NotNull]
-        public Queue<string> Output { get; } = new Queue<string>();
-
-        /// <summary>
         /// Crafts an execution context object that represents a failed execution due to an error condition
         /// </summary>
-        /// <param name="program">The program that was executed</param>
+        /// <param name="statement">The statement that was evaluated</param>
         /// <param name="errorNumber">The general category of error that occurred</param>
         /// <param name="errorMessage">The specific error message that was recorded</param>
         /// <returns>
         /// The <see cref="Scripting.Context{T}"/> object representing the error conditions
         /// </returns>
         [NotNull, Pure]
-        public static Context<T> Error(
-            [CanBeNull] Program program,
+        public static StatementContext<T> Error(
+            [CanBeNull] string statement,
             ContextErrorNumber errorNumber,
             [NotNull] string errorMessage)
         {
-            return new Context<T>(program, errorNumber, errorMessage);
+            return new StatementContext<T>(statement, errorNumber, errorMessage);
         }
 
         [NotNull]
         public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken)
         {
-            if (this.program == null)
+            if (string.IsNullOrWhiteSpace(this.statement))
             {
-                throw new InvalidOperationException("this.program == null");
+                throw new InvalidOperationException("string.IsNullOrWhiteSpace(this.statement)");
             }
 
             this.State = ContextState.Running;
@@ -131,20 +110,6 @@ namespace Mudpie.Console.Scripting
                 this.State = ContextState.Errored;
                 this.ErrorMessage = ex.ToString();
             }
-        }
-
-        protected internal void AppendFeedback([NotNull] string feedback)
-        {
-            if (this.Output.Count == 0 || this.Output.Peek().EndsWith("\r\n")) this.Output.Enqueue(feedback);
-            else if (feedback.EndsWith("\r\n")) this.Output.Enqueue(feedback);
-            else if (feedback.IndexOf("\r\n", StringComparison.Ordinal) > -1)
-            {
-                var lines = feedback.Split(new[] { "\r\n" }, StringSplitOptions.None);
-                for (int i = 0; i < lines.Length; i++)
-                    if (i < lines.Length - 1) this.Output.Enqueue(lines[i] + "\r\n");
-                    else this.Output.Enqueue(lines[i]);
-            }
-            else this.Output.Enqueue(feedback);
         }
     }
 }

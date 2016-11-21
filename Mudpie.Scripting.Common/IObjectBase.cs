@@ -61,6 +61,12 @@ namespace Mudpie.Scripting.Common
         DbRef Parent { get; set; }
 
         /// <summary>
+        /// Gets or sets the properties on the object
+        /// </summary>
+        [CanBeNull]
+        Property[] Properties { get; set; }
+
+        /// <summary>
         /// Changes the location of this object to a new place
         /// </summary>
         /// <param name="newLocation">The reference of the new <see cref="IObjectBase"/> into which this object should be placed</param>
