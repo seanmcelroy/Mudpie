@@ -10,14 +10,8 @@ namespace Mudpie.Console.Scripting
 {
     using System;
     using System.Collections.Generic;
-    using System.Threading;
-    using System.Threading.Tasks;
 
     using JetBrains.Annotations;
-
-    using Microsoft.CodeAnalysis.Scripting;
-
-    using Mudpie.Server.Data;
 
     /// <summary>
     /// An execution context instance of a <see cref="Microsoft.CodeAnalysis.Scripting.Script"/> running in an <see cref="Engine"/>
@@ -28,7 +22,6 @@ namespace Mudpie.Console.Scripting
         /// <summary>
         /// Initializes a new instance of the <see cref="Context{T}"/> class.
         /// </summary>
-        /// <param name="program">The script to execute</param>
         protected Context()
         {
             this.State = ContextState.Loaded;
@@ -50,15 +43,15 @@ namespace Mudpie.Console.Scripting
         }
 
         /// <summary>
-        /// Gets the current state of the execution context
+        /// Gets or sets the current state of the execution context
         /// </summary>
-        public ContextState State { get; private set; }
+        public ContextState State { get; protected set; }
 
         /// <summary>
-        /// Gets the return value from the completed execution context
+        /// Gets or sets the return value from the completed execution context
         /// </summary>
         [CanBeNull]
-        public T ReturnValue { get; private set; }
+        public T ReturnValue { get; protected set; }
 
         /// <summary>
         /// Gets the general category of the error, if one was observed
@@ -67,71 +60,16 @@ namespace Mudpie.Console.Scripting
         public ContextErrorNumber? ErrorNumber { get; private set; }
 
         /// <summary>
-        /// Gets the specific message for the error, if one was observed
+        /// Gets or sets the specific message for the error, if one was observed
         /// </summary>
         [CanBeNull]
-        public string ErrorMessage { get; private set; }
-
-        /// <summary>
-        /// Gets the name of the program
-        /// </summary>
-        [CanBeNull]
-        public string ProgramName => this.program?.Name;
+        public string ErrorMessage { get; protected set; }
 
         /// <summary>
         /// Gets the feedback provided by the output of the executing program
         /// </summary>
         [NotNull]
         public Queue<string> Output { get; } = new Queue<string>();
-
-        /// <summary>
-        /// Crafts an execution context object that represents a failed execution due to an error condition
-        /// </summary>
-        /// <param name="program">The program that was executed</param>
-        /// <param name="errorNumber">The general category of error that occurred</param>
-        /// <param name="errorMessage">The specific error message that was recorded</param>
-        /// <returns>
-        /// The <see cref="Scripting.Context{T}"/> object representing the error conditions
-        /// </returns>
-        [NotNull, Pure]
-        public static Context<T> Error(
-            [CanBeNull] Program program,
-            ContextErrorNumber errorNumber,
-            [NotNull] string errorMessage)
-        {
-            return new Context<T>(program, errorNumber, errorMessage);
-        }
-
-        [NotNull]
-        public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken)
-        {
-            if (this.program == null)
-            {
-                throw new InvalidOperationException("this.program == null");
-            }
-
-            this.State = ContextState.Running;
-            try
-            {
-                var state = await this.program.Compile().RunAsync(globals, cancellationToken);
-                if (state.ReturnValue != null)
-                {
-                    this.ReturnValue = (T)state.ReturnValue;
-                }
-
-                this.State = ContextState.Completed;
-            }
-            catch (CompilationErrorException ex)
-            {
-                this.State = ContextState.Errored;
-                this.ErrorMessage = ex.Message;
-            }
-            catch (Exception ex)
-            {
-                this.State = ContextState.Errored;
-                this.ErrorMessage = ex.ToString();
-            }
-        }
 
         protected internal void AppendFeedback([NotNull] string feedback)
         {

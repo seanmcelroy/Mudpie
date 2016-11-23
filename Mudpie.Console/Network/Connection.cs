@@ -26,6 +26,7 @@ namespace Mudpie.Console.Network
 
     using log4net;
 
+    using Mudpie.Console.Scripting;
     using Mudpie.Scripting.Common;
     using Mudpie.Server.Data;
 
@@ -316,7 +317,7 @@ namespace Mudpie.Console.Network
         {
             return await this.SendInternalAsync(string.Format(CultureInfo.InvariantCulture, format, args), cancellationToken);
         }
-        
+
         /// <summary>
         /// Redirects input from the connection to a <see cref="Program"/> input handler, running in a <see cref="Scripting.Engine"/>
         /// </summary>
@@ -365,7 +366,15 @@ namespace Mudpie.Console.Network
             string content,
             CancellationToken cancellationToken)
         {
-            if (BuiltInCommandDirectory.ContainsKey(content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant()))
+            if (content == null)
+            {
+                return false;
+            }
+
+            var firstWord = content.Split(' ').FirstOrDefault();
+            firstWord = firstWord?.TrimEnd('\r', '\n').ToUpperInvariant();
+
+            if (firstWord != null && BuiltInCommandDirectory.ContainsKey(firstWord))
             {
                 try
                 {
@@ -379,11 +388,9 @@ namespace Mudpie.Console.Network
                             content.TrimEnd('\r', '\n'));
                     }
 
-                    var result =
-                        await
-                            BuiltInCommandDirectory[content.Split(' ').First().TrimEnd('\r', '\n').ToUpperInvariant()]
-                                .Invoke(this, content, cancellationToken);
-
+                    // ReSharper disable PossibleNullReferenceException
+                    var result = await BuiltInCommandDirectory[firstWord].Invoke(this, content, cancellationToken);
+                    // ReSharper restore PossibleNullReferenceException
                     if (!result.IsHandled)
                     {
                         await this.SendAsync("500 Unknown command\r\n", cancellationToken);
@@ -519,6 +526,75 @@ namespace Mudpie.Console.Network
 
                 if (verbReferenceAndObject.Item1.Equals(DbRef.FailedMatch))
                 {
+                    if (verb != null && verb.StartsWith(";"))
+                    {
+                        // Try to evaluate it as a statement
+                        await Task.Factory.StartNew(
+                            async () =>
+                            {
+                                var statement = content.Substring(1).TrimEnd('\r', '\n');
+                                var context = await this.server.ScriptingEngine.EvaluateStatementAsync<object>(statement, this, this.Identity, verb, argString, words.Skip(1).ToArray(), directObject, directObjectReferenceAndObject.Item2, prep, indirectObject, indirectObjectReferenceAndObject.Item2, cancellationToken);
+                                if (context.ErrorNumber == ContextErrorNumber.ProgramNotFound || context.ErrorNumber == ContextErrorNumber.ProgramNotSpecified)
+                                {
+                                    await this.SendAsync("Huh?\r\n\r\n", cancellationToken);
+                                }
+                                else if (context.ErrorNumber == ContextErrorNumber.AuthenticationRequired)
+                                {
+                                    await this.SendAsync("You must be logged in to use that command.\r\n\r\n", cancellationToken);
+                                }
+                                else
+                                {
+                                    switch (context.State)
+                                    {
+                                        case ContextState.Aborted:
+                                            {
+                                                await this.SendAsync("Aborted.\r\n", cancellationToken);
+                                                break;
+                                            }
+
+                                        case ContextState.Errored:
+                                            {
+                                                await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n", cancellationToken);
+                                                break;
+                                            }
+
+                                        case ContextState.Killed:
+                                            {
+                                                await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n", cancellationToken);
+                                                break;
+                                            }
+
+                                        case ContextState.Loaded:
+                                            {
+                                                await this.SendAsync($"STUCK: '{statement}' loaded but not completed.\r\n", cancellationToken);
+                                                break;
+                                            }
+
+                                        case ContextState.Paused:
+                                            {
+                                                await this.SendAsync($"Paused: {statement}.\r\n", cancellationToken);
+                                                break;
+                                            }
+
+                                        case ContextState.Running:
+                                            {
+                                                await this.SendAsync($"Running... {statement}.\r\n", cancellationToken);
+                                                break;
+                                            }
+
+                                        case ContextState.Completed:
+                                            {
+                                                Logger.Verbose($"{this.Identity?.Name}> Run of {statement} complete.  Result:{context.ReturnValue}\r\n");
+                                                await this.SendAsync($"{context.ReturnValue}\r\n", cancellationToken);
+                                                break;
+                                            }
+                                    }
+                                }
+                            },
+                            cancellationToken);
+                        return false;
+                    }
+
                     await this.SendAsync("Er?\r\n", cancellationToken);
                     return false;
                 }
@@ -529,7 +605,7 @@ namespace Mudpie.Console.Network
                 var target = await ObjectBase.GetAsync(this.server.ScriptingEngine.Redis, link.Target, cancellationToken);
                 if (target == null)
                 {
-                    await this.SendAsync("You peer closer and notice a rip in the space-time continuum...\r\n", cancellationToken);
+                    await this.SendAsync("You peer closer and notice a rip in the space-time continuum...  This link doesn't lead anywhere.\r\n", cancellationToken);
                     return false;
                 }
 
@@ -538,64 +614,56 @@ namespace Mudpie.Console.Network
                 {
                     // Spawn the program as an asychronous task (no await) so input can still be processed on this connection
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                    Task.Factory.StartNew(
-                        async () =>
+                    Task.Factory.StartNew(async () =>
+                        {
+                            var context = await this.server.ScriptingEngine.RunProgramAsync<object>(target.DbRef, this, verbReferenceAndObject.Item2, this.Identity, verb, argString, words.Skip(1).ToArray(), directObject, directObjectReferenceAndObject.Item2, prep, indirectObject, indirectObjectReferenceAndObject.Item2, cancellationToken);
+                            if (context.ErrorNumber == ContextErrorNumber.ProgramNotFound || context.ErrorNumber == ContextErrorNumber.ProgramNotSpecified)
                             {
-                                var context =
-                                    await
-                                        this.server.ScriptingEngine.RunProgramAsync<object>(
-                                            target.DbRef,
-                                            this,
-                                            verbReferenceAndObject.Item2,
-                                            this.Identity,
-                                            verb,
-                                            argString,
-                                            words.Skip(1).ToArray(),
-                                            directObject,
-                                            directObjectReferenceAndObject.Item2,
-                                            prep,
-                                            indirectObject,
-                                            indirectObjectReferenceAndObject.Item2,
-                                            cancellationToken);
-                                if (context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotFound
-                                    || context.ErrorNumber == Scripting.ContextErrorNumber.ProgramNotSpecified)
+                                await this.SendAsync("Huh?\r\n\r\n", cancellationToken);
+                            }
+                            else if (context.ErrorNumber == ContextErrorNumber.AuthenticationRequired)
+                            {
+                                await this.SendAsync("You must be logged in to use that command.\r\n\r\n", cancellationToken);
+                            }
+                            else
+                            {
+                                switch (context.State)
                                 {
-                                    await this.SendAsync("Huh?\r\n\r\n", cancellationToken);
-                                }
-                                else if (context.ErrorNumber == Scripting.ContextErrorNumber.AuthenticationRequired)
-                                {
-                                    await this.SendAsync("You must be logged in to use that command.\r\n\r\n", cancellationToken);
-                                }
-                                else
-                                {
-                                    switch (context.State)
-                                    {
-                                        case Scripting.ContextState.Aborted:
-                                            await this.SendAsync("Aborted.\r\n", cancellationToken);
+                                    case ContextState.Aborted:
+                                        await this.SendAsync("Aborted.\r\n", cancellationToken);
+                                        break;
+                                    case ContextState.Errored:
+                                        await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n", cancellationToken);
+                                        break;
+                                    case ContextState.Killed:
+                                        await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n", cancellationToken);
+                                        break;
+                                    case ContextState.Loaded:
+                                        {
+                                            await this.SendAsync($"STUCK: {context.ProgramName} loaded but not completed.\r\n", cancellationToken);
                                             break;
-                                        case Scripting.ContextState.Errored:
-                                            await this.SendAsync($"ERROR: {context.ErrorMessage}\r\n", cancellationToken);
-                                            break;
-                                        case Scripting.ContextState.Killed:
-                                            await this.SendAsync($"KILLED: {context.ErrorMessage}\r\n", cancellationToken);
-                                            break;
-                                        case Scripting.ContextState.Loaded:
-                                            await
-                                                this.SendAsync($"STUCK: {context.ProgramName} loaded but not completed.\r\n", cancellationToken);
-                                            break;
-                                        case Scripting.ContextState.Paused:
+                                        }
+
+                                    case ContextState.Paused:
+                                        {
                                             await this.SendAsync($"Paused: {context.ProgramName}.\r\n", cancellationToken);
                                             break;
-                                        case Scripting.ContextState.Running:
+                                        }
+
+                                    case ContextState.Running:
+                                        {
                                             await this.SendAsync($"Running... {context.ProgramName}.\r\n", cancellationToken);
                                             break;
-                                        case Scripting.ContextState.Completed:
-                                            Logger.Verbose(
-                                                $"{this.Identity?.Name}> Run of {context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
+                                        }
+
+                                    case ContextState.Completed:
+                                        {
+                                            Logger.Verbose($"{this.Identity?.Name}> Run of {context} complete.  Result:{context.ReturnValue}\r\n");
                                             break;
-                                    }
+                                        }
                                 }
-                            },
+                            }
+                        }, 
                         cancellationToken);
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                 }
@@ -619,6 +687,7 @@ namespace Mudpie.Console.Network
             try
             {
                 // Begin sending the data to the remote device.
+                // ReSharper disable once PossibleNullReferenceException
                 await this.stream.WriteAsync(byteData, 0, byteData.Length, cancellationToken);
                 if (this.ShowBytes && this.ShowData)
                 {
@@ -675,6 +744,7 @@ namespace Mudpie.Console.Network
                 return false;
             }
         }
+
         #endregion
 
         #region Commands

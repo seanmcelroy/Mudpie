@@ -58,7 +58,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ContextGlobals.cs" />
+    <Compile Include="StatementContextGlobals.cs" />
+    <Compile Include="ProgramContextGlobals.cs" />
     <Compile Include="DbRef.cs" />
     <Compile Include="DbRefJsonConverter.cs" />
     <Compile Include="IDatabaseLibrary.cs" />

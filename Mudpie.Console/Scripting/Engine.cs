@@ -8,6 +8,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 namespace Mudpie.Console.Scripting
 {
+    using System;
     using System.Diagnostics;
     using System.IO;
     using System.Threading;
@@ -45,11 +46,28 @@ namespace Mudpie.Console.Scripting
         /// Gets the client proxy to the data store instance used by the engine
         /// </summary>
         internal ICacheClient Redis => this.redis;
-
-        public async Task<Context<T>> EvalAsync<T>(
-            [NotNull] string statement,
+        
+        /// <summary>
+        /// Executes the script of a program
+        /// </summary>
+        /// <typeparam name="T">The return type of the program</typeparam>
+        /// <param name="statement">The statement to evaluate</param>
+        /// <param name="connection">The connection on which the request to run the command came, if it was triggered by an interactive session</param>
+        /// <param name="caller">The object on which the verb that called the currently-running verb</param>
+        /// <param name="verb">The verb; a string, the name by which the currently-running verb was identified.</param>
+        /// <param name="argString">A string, everything after the first word of the command</param>
+        /// <param name="args">A list of strings, the words in <see cref="argString"/></param>
+        /// <param name="directObjectString">A string, the direct object string found during parsing</param>
+        /// <param name="directObject">An object, the direct object value found during matching</param>
+        /// <param name="prepositionString">A string, the prepositional phrase string found during parsing</param>
+        /// <param name="indirectObjectString">A string, the indirect object string found during parsing</param>
+        /// <param name="indirectObject">An object, the indirect object value found during matching</param>
+        /// <param name="cancellationToken">A cancellation token used to abort the method</param>
+        /// <returns>A context object that contains information about the execution of the script, including error conditions or return value</returns>
+        [NotNull, ItemNotNull]
+        public async Task<StatementContext<T>> EvaluateStatementAsync<T>(
+            [CanBeNull] string statement,
             [CanBeNull] Connection connection,
-            [NotNull] ObjectBase thisObject,
             [NotNull] ObjectBase caller,
             [CanBeNull] string verb,
             [CanBeNull] string argString,
@@ -61,129 +79,59 @@ namespace Mudpie.Console.Scripting
             [CanBeNull] ObjectBase indirectObject,
             CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace("statement"))
+            if (caller == null)
             {
-                return Context<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No statement was provided for evaluation");
+                throw new ArgumentNullException(nameof(caller));
+            }
+
+            if (string.IsNullOrWhiteSpace(statement))
+            {
+                return StatementContext<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No statement was supplied");
             }
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             if (connection?.Identity == null)
             {
-                return Context<T>.Error(null, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
+                return StatementContext<T>.Error(statement, ContextErrorNumber.AuthenticationRequired, "You are not logged in");
             }
 
-            var context = new Context<T>(program);
-            using (var outputStream = new MemoryStream(2048))
-            using (var outputStreamReader = new StreamReader(outputStream))
-            using (var outputStreamWriter = new StreamWriter(outputStream))
+            var context = new StatementContext<T>(statement);
 
             // Don't try to combine this with the method parameter version
-            using (var outputCancellationTokenSource = new CancellationTokenSource())
+            var scriptGlobals = new StatementContextGlobals(caller)
             {
-                Debug.Assert(outputStream != null, "outputStream != null");
-                Debug.Assert(outputStreamWriter != null, "outputStreamWriter != null");
+                ArgString = argString,
+                Args = args,
+                DirectObject = directObject,
+                DirectObjectString = directObjectString,
+                IndirectObject = indirectObject,
+                IndirectObjectString = indirectObjectString,
+                Player = connection.Identity,
+                PlayerLocation = connection.Identity == null 
+                    ? null 
+                    : (await CacheManager.LookupOrRetrieveAsync<ObjectBase>(connection.Identity.Location, this.Redis, async (d, token) => await Room.GetAsync(this.Redis, d, token), cancellationToken))?.DataObject,
+                PrepositionString = prepositionString,
+                Verb = verb
+            };
+                
+            try
+            {
+                await context.EvalAsync(scriptGlobals, cancellationToken);
+            }
+            finally
+            {
+                connection.ResetInputRedirection();
+            }
 
-                var scriptGlobals = new ContextGlobals(thisObject, caller, outputStreamWriter, new Libraries.DatabaseLibrary(caller, this.redis))
-                {
-                    ArgString = argString,
-                    Args = args,
-                    DirectObject = directObject,
-                    DirectObjectString = directObjectString,
-                    IndirectObject = indirectObject,
-                    IndirectObjectString = indirectObjectString,
-                    Player = connection?.Identity,
-                    PlayerLocation = connection?.Identity == null ? null : (await CacheManager.LookupOrRetrieveAsync<ObjectBase>(connection.Identity.Location, this.Redis, async (d, token) => await Room.GetAsync(this.Redis, d, token), cancellationToken))?.DataObject,
-                    PrepositionString = prepositionString,
-                    Verb = verb
-                };
-
-                var outputLastPositionRead = 0L;
-
-                // OUTPUT
-                var appendOutputTask = new Task(
-                    async () =>
-                    {
-                        while (context.State == ContextState.Loaded || context.State == ContextState.Running)
-                        {
-                            if (context.State == ContextState.Running)
-                            {
-                                // Input
-                                await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
-
-                                // Output
-                                await scriptGlobals.PlayerOutput.FlushAsync();
-                                outputStream.Position = Interlocked.Read(ref outputLastPositionRead);
-                                var outputString = await outputStreamReader.ReadToEndAsync();
-                                if (!string.IsNullOrEmpty(outputString))
-                                {
-                                    context.AppendFeedback(outputString);
-                                }
-
-                                Interlocked.Exchange(ref outputLastPositionRead, outputStream.Position);
-
-                                // Send output to trigger, if capable of receiving.
-                                while (connection != null && context.Output.Count > 0)
-                                {
-                                    var nextOutput = context.Output.Dequeue();
-                                    if (nextOutput != null)
-                                    {
-                                        await connection.SendAsync(nextOutput, cancellationToken);
-                                    }
-                                }
-                            }
-
-                            Thread.Sleep(100);
-                        }
-                    },
-                outputCancellationTokenSource.Token);
-                appendOutputTask.Start();
-
-                // INPUT
-                if (program.Interactive)
-                {
-                    connection?.RedirectInputToProgram(
-                        async input =>
-                        {
-                            await scriptGlobals.PlayerInputWriterInternal.WriteAsync(input);
-                            await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
-                        });
-                }
-
-                try
-                {
-                    await context.RunAsync(scriptGlobals, cancellationToken);
-                }
-                finally
-                {
-                    connection?.ResetInputRedirection();
-                }
-
-                outputCancellationTokenSource.Cancel();
-
-                // Do one last time to get any last feedback
-
-                // Input
-                await scriptGlobals.PlayerInputWriterInternal.FlushAsync();
-
-                // Output
-                await scriptGlobals.PlayerOutput.FlushAsync();
-                outputStream.Position = Interlocked.Read(ref outputLastPositionRead);
-                var feedbackString2 = await outputStreamReader.ReadToEndAsync();
-                Interlocked.Exchange(ref outputLastPositionRead, outputStream.Position);
-                if (!string.IsNullOrEmpty(feedbackString2))
-                {
-                    context.AppendFeedback(feedbackString2);
-                }
-
-                // Send output to trigger, if capable of receiving.
-                while (connection != null && context.Output.Count > 0)
-                {
-                    await connection.SendAsync(context.Output.Dequeue(), cancellationToken);
-                }
+            // Do one last time to get any last feedback
+                
+            // Send output to trigger, if capable of receiving.
+            while (connection != null && context.Output.Count > 0)
+            {
+                await connection.SendAsync(context.Output.Dequeue(), cancellationToken);
             }
 
             return context;
-
         }
 
         /// <summary>
@@ -205,7 +153,7 @@ namespace Mudpie.Console.Scripting
         /// <param name="cancellationToken">A cancellation token used to abort the method</param>
         /// <returns>A context object that contains information about the execution of the script, including error conditions or return value</returns>
         [NotNull, ItemNotNull]
-        public async Task<Context<T>> RunProgramAsync<T>(
+        public async Task<ProgramContext<T>> RunProgramAsync<T>(
             DbRef programRef,
             [CanBeNull] Connection connection,
             [NotNull] ObjectBase thisObject,
@@ -220,15 +168,25 @@ namespace Mudpie.Console.Scripting
             [CanBeNull] ObjectBase indirectObject,
             CancellationToken cancellationToken)
         {
+            if (thisObject == null)
+            {
+                throw new ArgumentNullException(nameof(thisObject));
+            }
+
+            if (caller == null)
+            {
+                throw new ArgumentNullException(nameof(caller));
+            }
+
             if (programRef.Equals(DbRef.Nothing))
             {
-                return Context<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No program was supplied");
+                return ProgramContext<T>.Error(null, ContextErrorNumber.ProgramNotSpecified, "No program was supplied");
             }
 
             var program = await Program.GetAsync(this.redis, programRef, cancellationToken);
             if (program == null)
             {
-                return Context<T>.Error(
+                return ProgramContext<T>.Error(
                     null,
                     ContextErrorNumber.ProgramNotFound,
                     $"Unable to locate program {programRef}");
@@ -237,10 +195,10 @@ namespace Mudpie.Console.Scripting
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             if (connection?.Identity == null && !program.UnauthenticatedExecution)
             {
-                return Context<T>.Error(program, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
+                return ProgramContext<T>.Error(program, ContextErrorNumber.AuthenticationRequired, "No trigger was supplied");
             }
 
-            var context = new Context<T>(program);
+            var context = new ProgramContext<T>(program);
             using (var outputStream = new MemoryStream(2048))
             using (var outputStreamReader = new StreamReader(outputStream))
             using (var outputStreamWriter = new StreamWriter(outputStream))
@@ -251,7 +209,7 @@ namespace Mudpie.Console.Scripting
                 Debug.Assert(outputStream != null, "outputStream != null");
                 Debug.Assert(outputStreamWriter != null, "outputStreamWriter != null");
 
-                var scriptGlobals = new ContextGlobals(thisObject, caller, outputStreamWriter, new Libraries.DatabaseLibrary(caller, this.redis))
+                var scriptGlobals = new ProgramContextGlobals(thisObject, caller, outputStreamWriter, new Libraries.DatabaseLibrary(caller, this.redis))
                 {
                     ArgString = argString,
                     Args = args,

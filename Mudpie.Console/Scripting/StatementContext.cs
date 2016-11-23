@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="Context.cs" company="Sean McElroy">
+// <copyright file="StatementContext.cs" company="Sean McElroy">
 //   Released under the terms of the MIT License
 // </copyright>
 // <summary>
@@ -9,15 +9,16 @@
 namespace Mudpie.Console.Scripting
 {
     using System;
-    using System.Collections.Generic;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
 
     using JetBrains.Annotations;
 
+    using Microsoft.CodeAnalysis.CSharp.Scripting;
     using Microsoft.CodeAnalysis.Scripting;
 
-    using Mudpie.Server.Data;
+    using Mudpie.Scripting.Common;
 
     /// <summary>
     /// An execution context instance of a <see cref="Microsoft.CodeAnalysis.Scripting.Script"/> running in an <see cref="Engine"/>
@@ -58,12 +59,6 @@ namespace Mudpie.Console.Scripting
         }
 
         /// <summary>
-        /// Gets the name of the program
-        /// </summary>
-        [CanBeNull]
-        public string ProgramName => this.program?.Name;
-
-        /// <summary>
         /// Crafts an execution context object that represents a failed execution due to an error condition
         /// </summary>
         /// <param name="statement">The statement that was evaluated</param>
@@ -80,23 +75,29 @@ namespace Mudpie.Console.Scripting
         {
             return new StatementContext<T>(statement, errorNumber, errorMessage);
         }
-
+        
         [NotNull]
-        public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken)
+        public async Task EvalAsync([CanBeNull] object globals, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(this.statement))
-            {
-                throw new InvalidOperationException("string.IsNullOrWhiteSpace(this.statement)");
-            }
-
             this.State = ContextState.Running;
             try
             {
-                var state = await this.program.Compile().RunAsync(globals, cancellationToken);
-                if (state.ReturnValue != null)
-                {
-                    this.ReturnValue = (T)state.ReturnValue;
-                }
+                // Add references
+                var scriptOptions = ScriptOptions.Default;
+                var mscorlib = typeof(object).Assembly;
+                var systemCore = typeof(Enumerable).Assembly;
+                var scriptingCommon = typeof(DbRef).Assembly;
+                scriptOptions = scriptOptions.AddReferences(
+                    mscorlib,
+                    systemCore,
+                    scriptingCommon);
+
+                this.ReturnValue = await CSharpScript.EvaluateAsync<T>(
+                    this.statement,
+                    scriptOptions,
+                    globals,
+                    typeof(StatementContextGlobals),
+                    cancellationToken);
 
                 this.State = ContextState.Completed;
             }

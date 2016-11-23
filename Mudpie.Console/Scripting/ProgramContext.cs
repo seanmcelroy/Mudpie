@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="Context.cs" company="Sean McElroy">
+// <copyright file="ProgramContext.cs" company="Sean McElroy">
 //   Released under the terms of the MIT License
 // </copyright>
 // <summary>
@@ -9,7 +9,6 @@
 namespace Mudpie.Console.Scripting
 {
     using System;
-    using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -17,7 +16,7 @@ namespace Mudpie.Console.Scripting
 
     using Microsoft.CodeAnalysis.Scripting;
 
-    using Mudpie.Server.Data;
+    using Server.Data;
 
     /// <summary>
     /// An execution context instance of a <see cref="Microsoft.CodeAnalysis.Scripting.Script"/> running in an <see cref="Engine"/>
@@ -64,12 +63,6 @@ namespace Mudpie.Console.Scripting
         public string ProgramName => this.program?.Name;
 
         /// <summary>
-        /// Gets the feedback provided by the output of the executing program
-        /// </summary>
-        [NotNull]
-        public Queue<string> Output { get; } = new Queue<string>();
-
-        /// <summary>
         /// Crafts an execution context object that represents a failed execution due to an error condition
         /// </summary>
         /// <param name="program">The program that was executed</param>
@@ -86,7 +79,7 @@ namespace Mudpie.Console.Scripting
         {
             return new ProgramContext<T>(program, errorNumber, errorMessage);
         }
-
+        
         [NotNull]
         public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken)
         {
@@ -116,20 +109,6 @@ namespace Mudpie.Console.Scripting
                 this.State = ContextState.Errored;
                 this.ErrorMessage = ex.ToString();
             }
-        }
-
-        internal void AppendFeedback([NotNull] string feedback)
-        {
-            if (this.Output.Count == 0 || this.Output.Peek().EndsWith("\r\n")) this.Output.Enqueue(feedback);
-            else if (feedback.EndsWith("\r\n")) this.Output.Enqueue(feedback);
-            else if (feedback.IndexOf("\r\n", StringComparison.Ordinal) > -1)
-            {
-                var lines = feedback.Split(new[] { "\r\n" }, StringSplitOptions.None);
-                for (int i = 0; i < lines.Length; i++)
-                    if (i < lines.Length - 1) this.Output.Enqueue(lines[i] + "\r\n");
-                    else this.Output.Enqueue(lines[i]);
-            }
-            else this.Output.Enqueue(feedback);
         }
     }
 }

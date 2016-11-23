@@ -138,7 +138,7 @@ namespace Mudpie.Console
                             var registerProgramToVoid = new Func<string, string, int, ICacheClient, Task<int>>(async (name, desc, nextDbRef, cacheClient) =>
                                                             {
                                                                 var source = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, name);
-                                                                Debug.Assert(source != null, "nameProgramSource != null");
+                                                                Debug.Assert(source != null, $"Unable to find source code for program {name}");
                                                                 var nameProgram = new Mudpie.Server.Data.Program(name, godPlayer.DbRef, source)
                                                                 {
                                                                     DbRef = nextDbRef,
@@ -166,7 +166,7 @@ namespace Mudpie.Console
                             // @NAME
                             nextAvailableDbRef = await registerProgramToVoid.Invoke("@dig.msc", "Creates new rooms", nextAvailableDbRef, redis);
                             nextAvailableDbRef = await registerProgramToVoid.Invoke("@name.msc", "Rename objects", nextAvailableDbRef, redis);
-                            nextAvailableDbRef = await registerProgramToVoid.Invoke("eval.msc", "Evaluates an expression and returns its result", nextAvailableDbRef, redis);
+                            //nextAvailableDbRef = await registerProgramToVoid.Invoke("eval.msc", "Evaluates an expression and returns its result", nextAvailableDbRef, redis);
 
                             await redis.Database.StringSetAsync("mudpie::dbref:counter", nextAvailableDbRef);
                         }

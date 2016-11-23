@@ -163,7 +163,7 @@ namespace Mudpie.Console.Scripting.Libraries
                 var newProperty = new Property
                                       {
                                           Name = propertyName,
-                                          Owner = caller.DbRef,
+                                          Owner = this.caller.DbRef,
                                           Value = propertyValue
                                       };
 
@@ -186,8 +186,7 @@ namespace Mudpie.Console.Scripting.Libraries
             }
             
             // TODO....
-
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
     }
 }

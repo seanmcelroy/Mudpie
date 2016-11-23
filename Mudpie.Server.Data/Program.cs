@@ -122,7 +122,7 @@ namespace Mudpie.Server.Data
 
                                                   var roslynScript = CSharpScript.Create<object>(
                                                       this.ScriptSource,
-                                                      globalsType: typeof(ContextGlobals));
+                                                      globalsType: typeof(ProgramContextGlobals));
                                                   Debug.Assert(
                                                       roslynScript != null,
                                                       "The script object must not be null after constructing it from default banner lines");
