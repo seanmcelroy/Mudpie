@@ -9,7 +9,7 @@
 namespace Mudpie.Console.Scripting
 {
     using System;
-    using System.Collections.Generic;
+    using System.Collections.Concurrent;
 
     using JetBrains.Annotations;
 
@@ -35,7 +35,10 @@ namespace Mudpie.Console.Scripting
         /// <exception cref="ArgumentNullException">Thrown when a null error message is supplied to this constructor</exception>
         protected Context(ContextErrorNumber errorNumber, [NotNull] string errorMessage)
         {
-            if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
+            if (string.IsNullOrWhiteSpace(errorMessage))
+            {
+                throw new ArgumentNullException(nameof(errorMessage));
+            }
 
             this.ErrorNumber = errorNumber;
             this.ErrorMessage = errorMessage;
@@ -69,7 +72,7 @@ namespace Mudpie.Console.Scripting
         /// Gets the feedback provided by the output of the executing program
         /// </summary>
         [NotNull]
-        public Queue<string> Output { get; } = new Queue<string>();
+        public ConcurrentQueue<string> Output { get; } = new ConcurrentQueue<string>();
 
         /// <summary>
         /// Adds a string to send back to a connection
@@ -77,16 +80,35 @@ namespace Mudpie.Console.Scripting
         /// <param name="feedback">The string to send back to the connection</param>
         protected internal void AppendFeedback([NotNull] string feedback)
         {
-            if (this.Output.Count == 0 || this.Output.Peek().EndsWith("\r\n")) this.Output.Enqueue(feedback);
-            else if (feedback.EndsWith("\r\n")) this.Output.Enqueue(feedback);
+            if (feedback == null)
+            {
+                throw new ArgumentNullException(nameof(feedback));
+            }
+
+            string content;
+            if (!this.Output.TryPeek(out content) || content.EndsWith("\r\n") || feedback.EndsWith("\r\n"))
+            {
+                this.Output.Enqueue(feedback);
+            }
             else if (feedback.IndexOf("\r\n", StringComparison.Ordinal) > -1)
             {
                 var lines = feedback.Split(new[] { "\r\n" }, StringSplitOptions.None);
-                for (int i = 0; i < lines.Length; i++)
-                    if (i < lines.Length - 1) this.Output.Enqueue(lines[i] + "\r\n");
-                    else this.Output.Enqueue(lines[i]);
+                for (var i = 0; i < lines.Length; i++)
+                {
+                    if (i < lines.Length - 1)
+                    {
+                        this.Output.Enqueue(lines[i] + "\r\n");
+                    }
+                    else
+                    {
+                        this.Output.Enqueue(lines[i]);
+                    }
+                }
             }
-            else this.Output.Enqueue(feedback);
+            else
+            {
+                this.Output.Enqueue(feedback);
+            }
         }
     }
 }

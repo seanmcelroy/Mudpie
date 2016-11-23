@@ -59,53 +59,43 @@ namespace Mudpie.Server.Data
 
             if (owner <= 0)
             {
-                throw new ArgumentException($"Owner must be set; value provided was {owner}", nameof(owner));
+                throw new ArgumentOutOfRangeException(nameof(owner), owner, $"Owner must be set; value provided was {owner}");
             }
 
             this.Name = name;
             this.Owner = owner;
         }
 
-        /// <summary>
-        /// Gets or sets the database reference of the object
-        /// </summary>
+        /// <inheritdoc />
         public DbRef DbRef { get; set; } = -1;
 
-        /// <summary>
-        /// Gets or sets the name of the object
-        /// </summary>
+        /// <inheritdoc />
         public string Name { get; set; }
 
-        /// <summary>
-        /// Gets or sets the aliases of this object
-        /// </summary>
+        /// <inheritdoc />
         public string[] Aliases { get; set; }
-
-        /// <summary>
-        /// Gets or sets the owner of the object
-        /// </summary>
+        
+        /// <inheritdoc />
         public DbRef Owner { get; set; }
 
-        /// <summary>
-        /// Gets or sets the location of this object
-        /// </summary>
+        /// <inheritdoc />
         public DbRef Location { get; set; } = DbRef.Nothing;
 
-        /// <summary>
-        /// Gets or sets the inverse of 'location', the contents of this object
-        /// </summary>
+        /// <inheritdoc />
         public DbRef[] Contents { get; set; }
 
-        /// <summary>
-        /// Gets or sets the parent of this object, from which it inherits properties and verbs
-        /// </summary>
+        /// <inheritdoc />
         public DbRef Parent { get; set; } = DbRef.Nothing;
 
-        /// <summary>
-        /// Gets or sets the properties on the object
-        /// </summary>
+        /// <inheritdoc />
         public Property[] Properties { get; set; } = new Property[0];
 
+        /// <summary>
+        /// Creates a new object asynchronously and returns it to the caller with only a <see cref="DbRef"/> assigned
+        /// </summary>
+        /// <typeparam name="T">The type of the object to create</typeparam>
+        /// <param name="redis">The client proxy to access the underlying data store</param>
+        /// <returns>A newly-created derivative of <see cref="ObjectBase"/></returns>
         [NotNull, ItemNotNull]
         public static async Task<T> CreateAsync<T>([NotNull] ICacheClient redis) where T : ObjectBase, new()
         {
@@ -127,6 +117,12 @@ namespace Mudpie.Server.Data
             return newObject;
         }
 
+        /// <summary>
+        /// Tests whether any object exists with the supplied <paramref name="reference"/>
+        /// </summary>
+        /// <param name="redis">The client proxy to access the underlying data store</param>
+        /// <param name="reference">The <see cref="DbRef"/> of the object to test whether it exists in the underlying data store</param>
+        /// <returns>A value indicating whether any object exists with the supplied <paramref name="reference"/></returns>
         [NotNull, Pure]
         public static async Task<bool> ExistsAsync([NotNull] ICacheClient redis, DbRef reference)
         {
@@ -142,7 +138,8 @@ namespace Mudpie.Server.Data
                                 redis.Database.SetContainsAsync("mudpie::links", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::players", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::programs", referenceString),
-                                redis.Database.SetContainsAsync("mudpie::rooms", referenceString)
+                                redis.Database.SetContainsAsync("mudpie::rooms", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::things", referenceString)
                             };
 
             // ReSharper disable once PossibleNullReferenceException
@@ -151,9 +148,21 @@ namespace Mudpie.Server.Data
             return tasks.Any(t => t.Result);
         }
 
+        /// <summary>
+        /// A helper method used to retrieve an object by its <paramref name="reference"/>, when its underlying type is unknown
+        /// </summary>
+        /// <param name="redis">The client proxy to access the underlying data store</param>
+        /// <param name="reference">The <see cref="DbRef"/> of the object to retrieve from the underlying data store</param>
+        /// <param name="cancellationToken">A cancellation token used to abort the processing loop</param>
+        /// <returns>The object, if it was located; otherwise, null</returns>
         [NotNull, Pure, ItemCanBeNull]
         public static async Task<ObjectBase> GetAsync([NotNull] ICacheClient redis, DbRef reference, CancellationToken cancellationToken)
         {
+            if (redis == null)
+            {
+                throw new ArgumentNullException(nameof(redis));
+            }
+
             var referenceString = "\"" + (string)reference + "\"";
 
             var tasks = new[]
@@ -161,7 +170,8 @@ namespace Mudpie.Server.Data
                                 redis.Database.SetContainsAsync("mudpie::links", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::players", referenceString),
                                 redis.Database.SetContainsAsync("mudpie::programs", referenceString),
-                                redis.Database.SetContainsAsync("mudpie::rooms", referenceString)
+                                redis.Database.SetContainsAsync("mudpie::rooms", referenceString),
+                                redis.Database.SetContainsAsync("mudpie::things", referenceString)
                             };
 
             // ReSharper disable once PossibleNullReferenceException
@@ -172,6 +182,7 @@ namespace Mudpie.Server.Data
             Debug.Assert(tasks[1] != null, "tasks[1] != null");
             Debug.Assert(tasks[2] != null, "tasks[2] != null");
             Debug.Assert(tasks[3] != null, "tasks[3] != null");
+            Debug.Assert(tasks[4] != null, "tasks[4] != null");
 
             if (tasks[0].Result)
             {
@@ -191,6 +202,11 @@ namespace Mudpie.Server.Data
             if (tasks[3].Result)
             {
                 return await Room.GetAsync(redis, reference, cancellationToken);
+            }
+
+            if (tasks[4].Result)
+            {
+                return await Thing.GetAsync(redis, reference, cancellationToken);
             }
 
             Logger.Warn($"Unable to resolve DbRef {reference}");
@@ -263,11 +279,25 @@ namespace Mudpie.Server.Data
         public abstract Task SaveAsync(ICacheClient redis, CancellationToken cancellationToken);
 
         /// <inheritdoc />
+        public virtual void Sanitize()
+        {
+            this.Aliases = null;
+            this.Contents = null;
+            this.Location = null;
+            this.Parent = null;
+            this.Properties = null;
+        }
+
+        /// <inheritdoc />
         public override string ToString()
         {
             return $"{this.Name}({this.DbRef})";
         }
 
+        /// <summary>
+        /// Adds an object into this container
+        /// </summary>
+        /// <param name="references">The references objects to add into this container</param>
         private void AddContents(params DbRef[] references)
         {
             if (references != null)
@@ -291,6 +321,10 @@ namespace Mudpie.Server.Data
             }
         }
 
+        /// <summary>
+        /// Removes objects from this container
+        /// </summary>
+        /// <param name="references">The references objects to remove from this container</param>
         private void RemoveContents(params DbRef[] references)
         {
             if (references != null)

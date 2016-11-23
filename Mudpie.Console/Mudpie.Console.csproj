@@ -189,6 +189,7 @@
     <Compile Include="Network\Server.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <None Include="Scripting\Builtin\Unauthenticated\%40create.mcs" />
     <None Include="Scripting\Builtin\Unauthenticated\%40dig.mcs" />
     <Compile Include="Scripting\StatementContext.cs" />
     <Compile Include="Scripting\ProgramContext.cs" />
@@ -208,6 +209,7 @@
     <None Include="Scripting\Builtin\Unauthenticated\%40name.msc" />
     <None Include="Scripting\Builtin\Unauthenticated\help.mtxt" />
     <None Include="Scripting\Builtin\Unauthenticated\%40describe.mcs" />
+    <None Include="Scripting\Builtin\Unauthenticated\inventory.msc" />
     <None Include="Scripting\Builtin\Unauthenticated\look.mcs" />
     <None Include="Scripting\Builtin\Unauthenticated\marco.mcs" />
   </ItemGroup>

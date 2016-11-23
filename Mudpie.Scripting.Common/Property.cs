@@ -52,7 +52,7 @@ namespace Mudpie.Scripting.Common
 
             if (owner <= 0)
             {
-                throw new ArgumentException("Owner was not set to a valid value", nameof(owner));
+                throw new ArgumentOutOfRangeException(nameof(owner), owner, $"Owner must be set; value provided was {owner}");
             }
 
             this.Name = name;

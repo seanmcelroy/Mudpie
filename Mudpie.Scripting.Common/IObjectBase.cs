@@ -40,6 +40,11 @@ namespace Mudpie.Scripting.Common
         string[] Aliases { get; set; }
 
         /// <summary>
+        /// Gets or sets the owner of the object
+        /// </summary>
+        DbRef Owner { get; set; }
+
+        /// <summary>
         /// Gets or sets the location of this object
         /// </summary>
         DbRef Location { get; set; }
@@ -89,5 +94,10 @@ namespace Mudpie.Scripting.Common
         /// <returns>A task object used to await this method for completion</returns>
         [NotNull]
         Task SaveAsync([NotNull] ICacheClient redis, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Removes object fields that non-owners are not permitted to access
+        /// </summary>
+        void Sanitize();
     }
 }

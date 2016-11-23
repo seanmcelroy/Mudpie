@@ -16,8 +16,8 @@ namespace Mudpie.Console.Scripting
 
     using JetBrains.Annotations;
 
-    using Mudpie.Console.Network;
     using Mudpie.Scripting.Common;
+    using Network;
     using Server.Data;
 
     using StackExchange.Redis.Extensions.Core;
@@ -39,6 +39,11 @@ namespace Mudpie.Console.Scripting
         /// <param name="redis">The client to access the data store</param>
         public Engine([NotNull] ICacheClient redis)
         {
+            if (redis == null)
+            {
+                throw new ArgumentNullException(nameof(redis));
+            }
+
             this.redis = redis;
         }
 
@@ -126,9 +131,17 @@ namespace Mudpie.Console.Scripting
             // Do one last time to get any last feedback
                 
             // Send output to trigger, if capable of receiving.
-            while (connection != null && context.Output.Count > 0)
+            while (context.Output.Count > 0)
             {
-                await connection.SendAsync(context.Output.Dequeue(), cancellationToken);
+                string nextOutput;
+                if (context.Output.TryDequeue(out nextOutput) && nextOutput != null)
+                {
+                    await connection.SendAsync(nextOutput, cancellationToken);
+                }
+                else
+                {
+                    break;
+                }
             }
 
             return context;
@@ -250,10 +263,14 @@ namespace Mudpie.Console.Scripting
                                     // Send output to trigger, if capable of receiving.
                                     while (connection != null && context.Output.Count > 0)
                                     {
-                                        var nextOutput = context.Output.Dequeue();
-                                        if (nextOutput != null)
+                                        string nextOutput;
+                                        if (context.Output.TryDequeue(out nextOutput) && nextOutput != null)
                                         {
                                             await connection.SendAsync(nextOutput, cancellationToken);
+                                        }
+                                        else
+                                        {
+                                            break;
                                         }
                                     }
                                 }
@@ -304,7 +321,15 @@ namespace Mudpie.Console.Scripting
                 // Send output to trigger, if capable of receiving.
                 while (connection != null && context.Output.Count > 0)
                 {
-                    await connection.SendAsync(context.Output.Dequeue(), cancellationToken);
+                    string nextOutput;
+                    if (context.Output.TryDequeue(out nextOutput) && nextOutput != null)
+                    {
+                        await connection.SendAsync(nextOutput, cancellationToken);
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
             }
 
@@ -319,6 +344,11 @@ namespace Mudpie.Console.Scripting
         [NotNull]
         public async Task<bool> ProgramExistsAsync([NotNull] string programName)
         {
+            if (programName == null)
+            {
+                throw new ArgumentNullException(nameof(programName));
+            }
+
             var normalizedProgramName = programName.ToLowerInvariant();
             return await this.redis.ExistsAsync($"mudpie::program:{normalizedProgramName}");
         }
@@ -326,6 +356,11 @@ namespace Mudpie.Console.Scripting
         [NotNull]
         public async Task SaveProgramAsync([NotNull] Program program)
         {
+            if (program == null)
+            {
+                throw new ArgumentNullException(nameof(program));
+            }
+
             var normalizedProgramName = program.Name.ToLowerInvariant();
 
             // ReSharper disable once PossibleNullReferenceException

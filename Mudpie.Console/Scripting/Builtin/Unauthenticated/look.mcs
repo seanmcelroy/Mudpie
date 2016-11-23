@@ -3,13 +3,18 @@
 	if (string.IsNullOrWhiteSpace(DirectObjectString))
 	{
 		PlayerOutput.WriteLine($"{PlayerLocation?.Name}({PlayerLocation?.DbRef})");
-		PlayerOutput.WriteLine(DatabaseLibrary.GetProperty(PlayerLocation.DbRef, Mudpie.Scripting.Common.Property.DESCRIPTION));
+		var desc = DatabaseLibrary.GetProperty(PlayerLocation.DbRef, Mudpie.Scripting.Common.Property.DESCRIPTION);
+		if (desc != null)
+			PlayerOutput.WriteLine(desc);
 	}
 	else {
 		PlayerOutput.WriteLine($"I don't see {DirectObjectString} here.");
 	}
 	return 0;
 }
-
-PlayerOutput.WriteLine($"{DirectObject.Name}({DirectObject.DbRef})");
-PlayerOutput.WriteLine(DatabaseLibrary.GetProperty(DirectObject.DbRef, Mudpie.Scripting.Common.Property.DESCRIPTION));
+else {
+	PlayerOutput.WriteLine($"{DirectObject.Name}({DirectObject.DbRef})");
+	var desc = DatabaseLibrary.GetProperty(DirectObject.DbRef, Mudpie.Scripting.Common.Property.DESCRIPTION);
+	if (desc != null)
+		PlayerOutput.WriteLine(desc);
+}

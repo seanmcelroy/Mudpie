@@ -123,39 +123,8 @@ namespace Mudpie.Console
                             }
 
                             await godPlayer.SaveAsync(redis, server.CancellationToken);
-                            {
-                                // LOOK
-                                var lookProgramSource = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, "look.mcs");
-                                Debug.Assert(lookProgramSource != null, "lookProgramSource != null");
-                                var lookProgram = new Mudpie.Server.Data.Program("look.msc", godPlayer.DbRef, lookProgramSource)
-                                                      {
-                                                          DbRef = 3,
-                                                          Properties = new[]
-                                                                    {
-                                                                        new Property(Property.DESCRIPTION, "A program used to observe your surroundings", godPlayer.DbRef)
-                                                                    },
-                                                          Interactive = false
-                                                      };
-                                await lookProgram.SaveAsync(redis, server.CancellationToken);
 
-                                // LINK-LOOK-ROOM
-                                var linkLook = new Link("look", godPlayer.DbRef)
-                                                   {
-                                                       DbRef = 4,
-                                                       Aliases = new[] { "l" },
-                                                       Target = 3
-                                                   };
-                                await linkLook.MoveAsync(voidRoom.DbRef, redis, server.CancellationToken);
-                                var void1 = ObjectBase.GetAsync(redis, voidRoom.DbRef, server.CancellationToken).Result;
-                                if (void1 == null)
-                                {
-                                    throw new InvalidOperationException("void1 cannot be null");
-                                }
-
-                                Debug.Assert(void1.Contents?.Length == 1, "After reparenting, VOID should have 1 content");
-                            }
-
-                            var nextAvailableDbRef = 5;
+                            var nextAvailableDbRef = 3;
                             var registerProgramToVoid = new Func<string, string[], string, int, ICacheClient, Task<int>>(async (name, aliases, desc, nextDbRef, cacheClient) =>
                                                             {
                                                                 var source = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, name);
@@ -165,7 +134,7 @@ namespace Mudpie.Console
                                                                     DbRef = nextDbRef,
                                                                     Properties = new[]
                                                                     {
-                                                                        new Property(Property.DESCRIPTION, "A program used to rename objects", godPlayer.DbRef)
+                                                                        new Property(Property.DESCRIPTION, desc, godPlayer.DbRef)
                                                                     },
                                                                     Interactive = false
                                                                 };
@@ -189,10 +158,13 @@ namespace Mudpie.Console
                                                             });
 
                             // @NAME
-                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@describe.msc", new[] { "@desc", "describe" },"Sets the description of an object", nextAvailableDbRef, redis);
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@create.msc", new[] { "create", "make" }, "Creates new things", nextAvailableDbRef, redis);
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@describe.msc", new[] { "@desc", "describe" }, "Sets the description of an object", nextAvailableDbRef, redis);
                             nextAvailableDbRef = await registerProgramToVoid.Invoke("@dig.msc", new[] { "dig" }, "Creates new rooms", nextAvailableDbRef, redis);
                             nextAvailableDbRef = await registerProgramToVoid.Invoke("@name.msc", new[] { "rename" }, "Rename objects", nextAvailableDbRef, redis);
-                            
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("inventory.msc", new[] { "i", "inv" }, "Lists the items you are carrying", nextAvailableDbRef, redis);
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("look.msc", new[] { "l" }, "Displays information about your surroundings, or an object.", nextAvailableDbRef, redis);
+
                             await redis.Database.StringSetAsync("mudpie::dbref:counter", nextAvailableDbRef);
                         }
                         else

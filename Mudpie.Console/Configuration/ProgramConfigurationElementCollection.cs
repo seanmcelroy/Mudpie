@@ -33,7 +33,10 @@ namespace Mudpie.Console.Configuration
             set
             {
                 if (this.BaseGet(index) != null)
+                {
                     this.BaseRemove(index);
+                }
+
                 this.BaseAdd(index, value);
             }
         }

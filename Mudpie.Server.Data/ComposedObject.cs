@@ -17,14 +17,12 @@ namespace Mudpie.Server.Data
 
     using JetBrains.Annotations;
 
-    using Mudpie.Scripting.Common;
-
     using Newtonsoft.Json;
 
     using StackExchange.Redis.Extensions.Core;
 
     /// <summary>
-    /// A composed object is a materialized view of a <see cref="ObjectBase"/> that has any inheritance <see cref="DbRef"/>'s retrieved from the <see cref="CacheManager"/>
+    /// A composed object is a materialized view of a <see cref="ObjectBase"/> that has any inheritance <see cref="Scripting.Common.DbRef"/>'s retrieved from the <see cref="CacheManager"/>
     /// to provide easily accessible inherited object graph access
     /// </summary>
     /// <typeparam name="T">The type of the object this composed object adapts</typeparam>
@@ -39,6 +37,11 @@ namespace Mudpie.Server.Data
         /// </param>
         private ComposedObject([NotNull] T dataObject)
         {
+            if (dataObject == null)
+            {
+                throw new ArgumentNullException(nameof(dataObject));
+            }
+
             this.DataObject = dataObject;
         }
         
@@ -119,6 +122,7 @@ namespace Mudpie.Server.Data
                 }, 
                 cancellationToken);
 
+            // ReSharper disable once PossibleNullReferenceException
             await Task.WhenAll(taskLocation, taskParent);
 
             return new Tuple<bool, IComposedObject<T>>(perfect, ret);

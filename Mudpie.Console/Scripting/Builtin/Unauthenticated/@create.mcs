@@ -1,0 +1,8 @@
+﻿if (string.IsNullOrWhiteSpace(PrepositionString) &&
+    string.IsNullOrWhiteSpace(IndirectObjectString))
+{
+    // Format: @dig <new-room-name>
+    var newRef = DatabaseLibrary.CreateThing(DirectObjectString);
+
+	PlayerOutput.WriteLine($"{DirectObjectString} created with number {newRef}.");
+}

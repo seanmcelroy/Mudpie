@@ -34,6 +34,16 @@ namespace Mudpie.Scripting.Common
         internal PlayerInputStreamWriter([NotNull] MemoryStream stream, [NotNull] PlayerInputStreamReader readerStream)
             : base(stream)
         {
+            if (stream == null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
+
+            if (readerStream == null)
+            {
+                throw new ArgumentNullException(nameof(readerStream));
+            }
+
             this.readerStream = readerStream;
         }
 

@@ -36,7 +36,10 @@ namespace Mudpie.Console.Scripting
         /// <param name="program">The script to execute</param>
         public ProgramContext([NotNull] Program program)
         {
-            if (program == null) throw new ArgumentNullException(nameof(program));
+            if (program == null)
+            {
+                throw new ArgumentNullException(nameof(program));
+            }
 
             this.program = program;
         }
@@ -51,7 +54,10 @@ namespace Mudpie.Console.Scripting
         private ProgramContext([CanBeNull] Program program, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
             : base(errorNumber, errorMessage)
         {
-            if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
+            if (string.IsNullOrWhiteSpace(errorMessage))
+            {
+                throw new ArgumentNullException(nameof(errorMessage));
+            }
 
             this.program = program;
         }
@@ -79,7 +85,13 @@ namespace Mudpie.Console.Scripting
         {
             return new ProgramContext<T>(program, errorNumber, errorMessage);
         }
-        
+
+        /// <summary>
+        /// Runs the program according to the supplied global variables
+        /// </summary>
+        /// <param name="globals">The global variables to supply to the statement</param>
+        /// <param name="cancellationToken">A cancellation token used to abort the method</param>
+        /// <returns>A task object used to await this method for completion</returns>
         [NotNull]
         public async Task RunAsync([CanBeNull] object globals, CancellationToken cancellationToken)
         {

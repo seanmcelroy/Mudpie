@@ -25,6 +25,11 @@ namespace Mudpie.Console.Network
         /// <param name="connection">The connection this metadata is associated with</param>
         public ConnectionMetadata([NotNull] Connection connection)
         {
+            if (connection == null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+
             this.Connection = connection;
         }
 

@@ -29,6 +29,16 @@ namespace Mudpie.Console
         [PublicAPI]
         public static void Trace([NotNull] this ILog log, [NotNull] string message)
         {
+            if (log == null)
+            {
+                throw new ArgumentNullException(nameof(log));
+            }
+
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
             log.Logger?.Log(
                 MethodBase.GetCurrentMethod()?.DeclaringType,
                 log4net.Core.Level.Trace,
@@ -48,6 +58,21 @@ namespace Mudpie.Console
         [PublicAPI]
         public static void TraceFormat([NotNull] this ILog log, [NotNull] string format, [NotNull] params object[] args)
         {
+            if (log == null)
+            {
+                throw new ArgumentNullException(nameof(log));
+            }
+
+            if (format == null)
+            {
+                throw new ArgumentNullException(nameof(format));
+            }
+
+            if (args == null)
+            {
+                throw new ArgumentNullException(nameof(args));
+            }
+
             log.Trace(string.Format(format, args));
         }
 
@@ -60,6 +85,16 @@ namespace Mudpie.Console
         [PublicAPI]
         public static void Verbose([NotNull] this ILog log, [NotNull] string message)
         {
+            if (log == null)
+            {
+                throw new ArgumentNullException(nameof(log));
+            }
+
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
+
             log.Logger?.Log(
                 MethodBase.GetCurrentMethod()?.DeclaringType,
                 log4net.Core.Level.Verbose,
@@ -79,6 +114,21 @@ namespace Mudpie.Console
         [PublicAPI]
         public static void VerboseFormat([NotNull] this ILog log, [NotNull] string format, [NotNull] params object[] args)
         {
+            if (log == null)
+            {
+                throw new ArgumentNullException(nameof(log));
+            }
+
+            if (format == null)
+            {
+                throw new ArgumentNullException(nameof(format));
+            }
+
+            if (args == null)
+            {
+                throw new ArgumentNullException(nameof(args));
+            }
+
             log.Verbose(string.Format(format, args));
         }
 
@@ -94,6 +144,21 @@ namespace Mudpie.Console
         [PublicAPI]
         public static void InfoFormat([NotNull] this ILog log, [NotNull] string format, [NotNull] params object[] args)
         {
+            if (log == null)
+            {
+                throw new ArgumentNullException(nameof(log));
+            }
+
+            if (format == null)
+            {
+                throw new ArgumentNullException(nameof(format));
+            }
+
+            if (args == null)
+            {
+                throw new ArgumentNullException(nameof(args));
+            }
+
             log.Info(string.Format(format, args));
         }
     }

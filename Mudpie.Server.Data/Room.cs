@@ -31,6 +31,15 @@ namespace Mudpie.Server.Data
         public Room([NotNull] string roomName, DbRef owner)
             : base(roomName, owner)
         {
+            if (string.IsNullOrWhiteSpace(roomName))
+            {
+                throw new ArgumentNullException(nameof(roomName));
+            }
+
+            if (owner <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(owner), owner, $"Owner must be set; value provided was {owner}");
+            }
         }
 
         /// <summary>
@@ -50,6 +59,16 @@ namespace Mudpie.Server.Data
         [NotNull, ItemNotNull]
         public static async Task<Room> CreateAsync([NotNull] ICacheClient redis, [NotNull] string name)
         {
+            if (redis == null)
+            {
+                throw new ArgumentNullException(nameof(redis));
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
             var newRoom = await CreateAsync<Room>(redis);
             newRoom.Name = name;
             return newRoom;

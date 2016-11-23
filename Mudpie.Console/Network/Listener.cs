@@ -44,6 +44,16 @@ namespace Mudpie.Console.Network
         public Listener([NotNull] Server server, [NotNull] IPEndPoint localEp)
             : base(localEp)
         {
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            if (localEp == null)
+            {
+                throw new ArgumentNullException(nameof(localEp));
+            }
+
             this.server = server;
         }
 
@@ -52,11 +62,18 @@ namespace Mudpie.Console.Network
         /// </summary>
         public PortClass PortType { get; set; }
 
+        /// <summary>
+        /// Begins accept connections on the connection listener
+        /// </summary>
+        /// <param name="cancellationToken">A cancellation token used to abort the method</param>
+        /// <returns>A task object used to await this method for completion</returns>
         [NotNull]
         public async Task StartAcceptingAsync(CancellationToken cancellationToken)
         {
             if (this.LocalEndpoint == null)
+            {
                 throw new InvalidOperationException("The local endpoint for this listener is null");
+            }
 
             // Establish the local endpoint for the socket.
             var localEndPoint = new IPEndPoint(IPAddress.Any, ((IPEndPoint)this.LocalEndpoint).Port);

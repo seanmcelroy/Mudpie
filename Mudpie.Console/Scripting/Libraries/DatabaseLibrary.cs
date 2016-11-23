@@ -56,6 +56,16 @@ namespace Mudpie.Console.Scripting.Libraries
         /// <param name="redis">The client proxy to the underlying data store</param>
         public DatabaseLibrary([NotNull] ObjectBase caller, [NotNull] ICacheClient redis)
         {
+            if (caller == null)
+            {
+                throw new ArgumentNullException(nameof(caller));
+            }
+
+            if (redis == null)
+            {
+                throw new ArgumentNullException(nameof(redis));
+            }
+
             this.caller = caller;
             this.redis = redis;
         }
@@ -98,6 +108,46 @@ namespace Mudpie.Console.Scripting.Libraries
         }
 
         /// <inheritdoc />
+        public DbRef CreateThing(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return DbRef.Nothing;
+            }
+
+            var cts = new CancellationTokenSource(5000); // 5 seconds
+            var locationGetAsyncTask = ObjectBase.GetAsync(this.redis, this.caller.Location, cts.Token);
+            if (!locationGetAsyncTask.Wait(5000))
+            {
+                return DbRef.Nothing;
+            }
+
+            var composedCallerLocation = locationGetAsyncTask.Result;
+            if (composedCallerLocation == null)
+            {
+                return DbRef.Nothing;
+            }
+
+            var createThingAsyncTask = Thing.CreateAsync(this.redis, name);
+            if (!createThingAsyncTask.Wait(5000))
+            {
+                return DbRef.Nothing;
+            }
+
+            var thing = createThingAsyncTask.Result;
+            thing.Location = this.caller.DbRef; // Goes in player inventory
+            thing.Owner = this.caller.Owner;
+            thing.Parent = DbRef.Nothing;
+            thing.SaveAsync(this.redis, cts.Token).Wait(cts.Token);
+
+            this.caller.Contents = new List<DbRef>(this.caller.Contents ?? new DbRef[0]) { thing.DbRef }.ToArray();
+            this.caller.SaveAsync(this.redis, cts.Token).Wait(cts.Token);
+            
+            Logger.Info($"Object {this.caller} created new thing {name}({thing.DbRef})");
+            return thing.DbRef;
+        }
+
+        /// <inheritdoc />
         public bool Rename(DbRef reference, string newName)
         {
             if (string.IsNullOrWhiteSpace(newName))
@@ -131,6 +181,36 @@ namespace Mudpie.Console.Scripting.Libraries
             }
 
             return true;
+        }
+
+        /// <inheritdoc />
+        public IObjectBase GetObject(DbRef reference)
+        {
+            if (this.caller == null)
+            {
+                throw new InvalidOperationException("The caller must be defined");
+            }
+
+            var cts = new CancellationTokenSource(5000); // 5 seconds
+
+            var getAsyncTask = ObjectBase.GetAsync(this.redis, reference, cts.Token); // 5 seconds
+            if (!getAsyncTask.Wait(5000))
+            {
+                return null;
+            }
+
+            var target = getAsyncTask.Result;
+            if (target == null)
+            {
+                return null;
+            }
+
+            if (!target.Owner.Equals(this.caller.DbRef))
+            {
+                target.Sanitize();
+            }
+
+            return target;
         }
 
         /// <inheritdoc />
@@ -221,14 +301,20 @@ namespace Mudpie.Console.Scripting.Libraries
                 return false;
             }
 
-            existingProperty.Value = propertyValue;
-            var saveAsyncTask2 = target.SaveAsync(this.redis, cts.Token);
-            if (!saveAsyncTask2.Wait(5000))
+            // If the new value is null, just delete the property
+            if (propertyValue == null)
             {
-                return false;
+                var newPropertyList = new List<Property>(target.Properties);
+                newPropertyList.Remove(existingProperty);
+                target.Properties = newPropertyList.ToArray();
+            }
+            else
+            {
+                existingProperty.Value = propertyValue;
             }
 
-            return true;
+            var saveAsyncTask2 = target.SaveAsync(this.redis, cts.Token);
+            return saveAsyncTask2.Wait(5000);
         }
     }
 }

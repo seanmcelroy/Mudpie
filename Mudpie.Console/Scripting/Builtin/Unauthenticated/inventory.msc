@@ -1,0 +1,16 @@
+﻿if (Player.Contents == null || Player.Contents.Length == 0)
+{
+	PlayerOutput.WriteLine("You aren't carrying anything.");
+}
+else 
+{
+	PlayerOutput.WriteLine("You are carrying:");
+	foreach (var invRef in Player.Contents)
+	{
+		var s = DatabaseLibrary.GetObject(invRef)?.ToString();
+		if (s != null)
+		{
+			PlayerOutput.WriteLine(s);
+		}
+	}
+}

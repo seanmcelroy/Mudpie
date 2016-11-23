@@ -248,8 +248,17 @@ namespace Mudpie.Console.Network
             this.cts = new CancellationTokenSource();
         }
 
+        /// <summary>
+        /// Adds a connection to the active server connection listen
+        /// </summary>
+        /// <param name="connection">The connection to add to the active server connection list</param>
         internal void AddConnection([NotNull] Connection connection)
         {
+            if (connection == null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+
             this.connections.Add(connection);
             Logger.VerboseFormat(
                 "Connection from {0}:{1} to {2}:{3}",
@@ -259,8 +268,17 @@ namespace Mudpie.Console.Network
                 connection.LocalPort);
         }
 
+        /// <summary>
+        /// Removes a connection from the active server connection listen
+        /// </summary>
+        /// <param name="connection">The connection to remove from the active server connection list</param>
         internal void RemoveConnection([NotNull] Connection connection)
         {
+            if (connection == null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+            
             this.connections.Remove(connection);
             if (connection.Identity == null)
             {

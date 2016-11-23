@@ -22,6 +22,12 @@ namespace Mudpie.Console.Scripting
     /// </summary>
     internal static class SourceUtility
     {
+        /// <summary>
+        /// Retrieves the source code from a program source code file
+        /// </summary>
+        /// <param name="configSection">The configuration section that denotes what directories to search to find source code files</param>
+        /// <param name="programFileName">The name of the program to search for</param>
+        /// <returns>The source code of the program, if it was located; otherwise, null</returns>
         [NotNull, ItemCanBeNull, Pure]
         public static async Task<string> GetSourceCodeLinesAsync([NotNull] MudpieConfigurationSection configSection, [NotNull] string programFileName)
         {

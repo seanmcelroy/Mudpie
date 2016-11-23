@@ -37,6 +37,26 @@ namespace Mudpie.Server.Data
         public Player([NotNull] string playerName, DbRef owner, [NotNull] string username)
             : base(playerName, owner)
         {
+            if (string.IsNullOrWhiteSpace(playerName))
+            {
+                throw new ArgumentNullException(nameof(playerName));
+            }
+
+            if (owner <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(owner), owner, $"Owner must be set; value provided was {owner}");
+            }
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentNullException(nameof(username));
+            }
+
+            if (owner <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(owner), owner, $"Owner must be set; value provided was {owner}");
+            }
+
             this.Username = username;
         }
 
@@ -83,6 +103,21 @@ namespace Mudpie.Server.Data
         [NotNull, ItemNotNull]
         public static async Task<Player> CreateAsync([NotNull] ICacheClient redis, [NotNull] string name, [NotNull] string username)
         {
+            if (redis == null)
+            {
+                throw new ArgumentNullException(nameof(redis));
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new ArgumentNullException(nameof(username));
+            }
+
             var newPlayer = await CreateAsync<Player>(redis);
             newPlayer.Name = name;
             newPlayer.Username = username;
@@ -145,6 +180,10 @@ namespace Mudpie.Server.Data
             // ReSharper restore PossibleNullReferenceException
         }
 
+        /// <summary>
+        /// Sets or changes the password of a player
+        /// </summary>
+        /// <param name="password">The new password for the player</param>
         public void SetPassword([NotNull] SecureString password)
         {
             if (password == null)
@@ -180,6 +219,11 @@ namespace Mudpie.Server.Data
         /// </returns>
         public bool VerifyPassword([NotNull] SecureString attempt)
         {
+            if (attempt == null)
+            {
+                throw new ArgumentNullException(nameof(attempt));
+            }
+
             var bstr = Marshal.SecureStringToBSTR(attempt);
             try
             {
@@ -190,6 +234,17 @@ namespace Mudpie.Server.Data
             {
                 Marshal.FreeBSTR(bstr);
             }
+        }
+
+        /// <inheritdoc />
+        public override void Sanitize()
+        {
+            this.LastLogin = null;
+            this.PasswordHash = null;
+            this.PasswordSalt = null;
+            this.Username = null;
+
+            base.Sanitize();
         }
     }
 }

@@ -38,7 +38,10 @@ namespace Mudpie.Console.Scripting
         /// <param name="statement">The statement to evaluate</param>
         public StatementContext([NotNull] string statement)
         {
-            if (string.IsNullOrWhiteSpace(statement)) throw new ArgumentNullException(nameof(statement));
+            if (string.IsNullOrWhiteSpace(statement))
+            {
+                throw new ArgumentNullException(nameof(statement));
+            }
 
             this.statement = statement;
         }
@@ -53,7 +56,10 @@ namespace Mudpie.Console.Scripting
         private StatementContext([CanBeNull] string statement, ContextErrorNumber errorNumber, [NotNull] string errorMessage)
             : base(errorNumber, errorMessage)
         {
-            if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
+            if (string.IsNullOrWhiteSpace(errorMessage))
+            {
+                throw new ArgumentNullException(nameof(errorMessage));
+            }
 
             this.statement = statement;
         }
@@ -75,7 +81,13 @@ namespace Mudpie.Console.Scripting
         {
             return new StatementContext<T>(statement, errorNumber, errorMessage);
         }
-        
+
+        /// <summary>
+        /// Evaluates the statement according to the supplied global variables
+        /// </summary>
+        /// <param name="globals">The global variables to supply to the statement</param>
+        /// <param name="cancellationToken">A cancellation token used to abort the method</param>
+        /// <returns>A task object used to await this method for completion</returns>
         [NotNull]
         public async Task EvalAsync([CanBeNull] object globals, CancellationToken cancellationToken)
         {

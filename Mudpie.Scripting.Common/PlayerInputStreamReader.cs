@@ -36,6 +36,10 @@ namespace Mudpie.Scripting.Common
         /// <param name="stream">The stream to be read</param>
         internal PlayerInputStreamReader([NotNull] MemoryStream stream) : base(stream)
         {
+            if (stream == null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
         }
 
         /// <inheritdoc />
@@ -128,17 +132,25 @@ namespace Mudpie.Scripting.Common
         internal void NotifyStreamChanged([NotNull] Encoding encoding)
         {
             if (encoding == null)
+            {
                 throw new ArgumentNullException(nameof(encoding));
+            }
 
             if (this.BaseStream.Length < 2)
+            {
                 return;
+            }
 
             var bytes = ((MemoryStream)this.BaseStream).ToArray();
             var str = encoding.GetString(bytes);
             if (str.IndexOf("\r\n", StringComparison.Ordinal) > -1)
+            {
                 this.waitHandle.Set();
+            }
             else
+            {
                 throw new InvalidOperationException();
+            }
         }
     }
 }

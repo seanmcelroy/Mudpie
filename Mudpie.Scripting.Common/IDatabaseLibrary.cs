@@ -26,12 +26,28 @@ namespace Mudpie.Scripting.Common
         DbRef CreateRoom([NotNull] string name);
 
         /// <summary>
+        /// Creates a new thing in the database and returns its <see cref="DbRef"/>
+        /// </summary>
+        /// <param name="name">The name of the new thing</param>
+        /// <returns>The database reference for the newly created object.
+        /// If the operation failed, this will return <see cref="DbRef.Nothing"/></returns>
+        DbRef CreateThing([NotNull] string name);
+
+        /// <summary>
         /// Renames an object
         /// </summary>
         /// <param name="reference">The <see cref="DbRef"/> of the object to rename</param>
         /// <param name="newName">The new name for the object</param>
         /// <returns>A value indicating whether the rename operation was successful</returns>
         bool Rename(DbRef reference, [NotNull] string newName);
+
+        /// <summary>
+        /// Retrieves an object with the given database reference
+        /// </summary>
+        /// <param name="reference">The <see cref="DbRef"/> of the object to retrieve</param>
+        /// <returns>The object, if it can be read by the caller; otherwise, the object with only the <see cref="IObjectBase.DbRef"/>, <see cref="IObjectBase.Name"/>, and <see cref="IObjectBase.Owner"/> properties populated</returns>
+        [CanBeNull]
+        IObjectBase GetObject(DbRef reference);
 
         /// <summary>
         /// Retrieves the value of the property with the given name

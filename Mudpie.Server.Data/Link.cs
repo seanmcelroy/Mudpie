@@ -14,7 +14,7 @@ namespace Mudpie.Server.Data
 
     using JetBrains.Annotations;
 
-    using Mudpie.Scripting.Common;
+    using Scripting.Common;
 
     using StackExchange.Redis.Extensions.Core;
 
@@ -31,6 +31,15 @@ namespace Mudpie.Server.Data
         public Link([NotNull] string linkName, DbRef owner)
             : base(linkName, owner)
         {
+            if (string.IsNullOrWhiteSpace(linkName))
+            {
+                throw new ArgumentNullException(nameof(linkName));
+            }
+
+            if (owner <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(owner), owner, $"Owner must be set; value provided was {owner}");
+            }
         }
 
         /// <summary>
@@ -71,6 +80,14 @@ namespace Mudpie.Server.Data
                     redis.AddAsync($"mudpie::link:{this.DbRef}", this),
                     CacheManager.UpdateAsync(this.DbRef, redis, this, cancellationToken));
             // ReSharper restore PossibleNullReferenceException
+        }
+
+        /// <inheritdoc />
+        public override void Sanitize()
+        {
+            this.Target = null;
+
+            base.Sanitize();
         }
     }
 }

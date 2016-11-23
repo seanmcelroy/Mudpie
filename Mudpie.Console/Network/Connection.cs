@@ -316,6 +316,16 @@ namespace Mudpie.Console.Network
         [StringFormatMethod("format"), NotNull]
         internal async Task<bool> SendAsync([NotNull] string format, CancellationToken cancellationToken, [NotNull] params object[] args)
         {
+            if (format == null)
+            {
+                throw new ArgumentNullException(nameof(format));
+            }
+
+            if (args == null)
+            {
+                throw new ArgumentNullException(nameof(args));
+            }
+
             return await this.SendInternalAsync(string.Format(CultureInfo.InvariantCulture, format, args), cancellationToken);
         }
 
@@ -325,6 +335,11 @@ namespace Mudpie.Console.Network
         /// <param name="inputHandler">The input handler that receives the redirect <see cref="Player"/> input</param>
         internal void RedirectInputToProgram([NotNull] Action<string> inputHandler)
         {
+            if (inputHandler == null)
+            {
+                throw new ArgumentNullException(nameof(inputHandler));
+            }
+
             this.programInputHandler = inputHandler;
             this.Mode = ConnectionMode.InteractiveProgram;
         }
@@ -341,7 +356,7 @@ namespace Mudpie.Console.Network
         /// <summary>
         /// Permanently terminates the connection
         /// </summary>
-        /// <returns>A task object used for asynchronous process</returns>
+        /// <returns>A task object used to await this method for completion</returns>
         [NotNull]
         internal async Task ShutdownAsync()
         {
@@ -685,6 +700,11 @@ namespace Mudpie.Console.Network
         [NotNull]
         private async Task<bool> SendInternalAsync([NotNull] string data, CancellationToken cancellationToken)
         {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
             // Convert the string data to byte data using ASCII encoding.
             var byteData = Encoding.UTF8.GetBytes(data);
 
@@ -763,6 +783,11 @@ namespace Mudpie.Console.Network
         [NotNull, ItemNotNull]
         private async Task<CommandProcessingResult> ConnectAsync([NotNull] string data, CancellationToken cancellationToken)
         {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
             var match = Regex.Match(data, @"connect\s+(?<username>[^\s]+)\s(?<password>[^\r\n]+)", RegexOptions.IgnoreCase);
             if (!match.Success)
             {

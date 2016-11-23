@@ -65,6 +65,11 @@ namespace Mudpie.Server.Data
                 throw new ArgumentNullException(nameof(programName));
             }
 
+            if (owner <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(owner), owner, $"Owner must be set; value provided was {owner}");
+            }
+
             if (scriptSource == null)
             {
                 throw new ArgumentNullException(nameof(scriptSource));
