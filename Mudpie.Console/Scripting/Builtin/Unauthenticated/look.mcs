@@ -3,7 +3,7 @@
 	if (string.IsNullOrWhiteSpace(DirectObjectString))
 	{
 		PlayerOutput.WriteLine($"{PlayerLocation?.Name}({PlayerLocation?.DbRef})");
-		PlayerOutput.WriteLine(PlayerLocation?.Description);
+		PlayerOutput.WriteLine(PlayerLocation?.GetPropertyValue(Caller.DbRef, Mudpie.Scripting.Common.Property.DESCRIPTION));
 	}
 	else {
 		PlayerOutput.WriteLine($"I don't see {DirectObjectString} here.");
@@ -12,4 +12,4 @@
 }
 
 PlayerOutput.WriteLine($"{DirectObject.Name}({DirectObject.DbRef})");
-PlayerOutput.WriteLine(DirectObject.Description);
+PlayerOutput.WriteLine(DirectObject.GetPropertyValue(Caller.DbRef, Mudpie.Scripting.Common.Property.DESCRIPTION));

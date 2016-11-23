@@ -9,6 +9,8 @@
 
 namespace Mudpie.Scripting.Common
 {
+    using System;
+
     using JetBrains.Annotations;
     using Newtonsoft.Json;
 
@@ -18,13 +20,54 @@ namespace Mudpie.Scripting.Common
     public class Property
     {
         /// <summary>
+        /// The name of the 'description' property
+        /// </summary>
+        public const string DESCRIPTION = "_/de";
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Property"/> class.
+        /// </summary>
+        // ReSharper disable once NotNullMemberIsNotInitialized
+        public Property()
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Property"/> class.
+        /// </summary>
+        /// <param name="name">The name of the property</param>
+        /// <param name="value">The value of the property</param>
+        /// <param name="owner">The owner of the property</param>
+        public Property([NotNull] string name, [NotNull] object value, DbRef owner)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            if (owner <= 0)
+            {
+                throw new ArgumentException("Owner was not set to a valid value", nameof(owner));
+            }
+
+            this.Name = name;
+            this.Value = value;
+            this.Owner = owner;
+        }
+
+        /// <summary>
         /// Gets or sets the name of the property
         /// </summary>
         [NotNull]
         public string Name { get; set; }
 
         /// <summary>
-        /// Gets or sets the owner o
+        /// Gets or sets the owner of the property
         /// </summary>
         public DbRef Owner { get; set; }
 

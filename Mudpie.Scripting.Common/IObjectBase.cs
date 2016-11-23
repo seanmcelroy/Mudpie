@@ -39,12 +39,6 @@ namespace Mudpie.Scripting.Common
         string[] Aliases { get; set; }
 
         /// <summary>
-        /// Gets or sets the description of the object if a user were to observe it directly
-        /// </summary>
-        [CanBeNull]
-        string Description { get; set; }
-
-        /// <summary>
         /// Gets or sets the location of this object
         /// </summary>
         DbRef Location { get; set; }
@@ -65,6 +59,15 @@ namespace Mudpie.Scripting.Common
         /// </summary>
         [CanBeNull]
         Property[] Properties { get; set; }
+
+        /// <summary>
+        /// Retrieves the value of the property with the given name
+        /// </summary>
+        /// <param name="caller">The player that is requesting access to the named property</param>
+        /// <param name="name">The name of the property to retrieve</param>
+        /// <returns>The value of the property if it exists; otherwise, null</returns>
+        [CanBeNull, Pure]
+        object GetPropertyValue(DbRef caller, [NotNull] string name);
 
         /// <summary>
         /// Changes the location of this object to a new place

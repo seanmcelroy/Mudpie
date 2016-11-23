@@ -86,11 +86,6 @@ namespace Mudpie.Server.Data
         public DbRef Owner { get; set; }
 
         /// <summary>
-        /// Gets or sets the description of the object if a user were to observe it directly
-        /// </summary>
-        public string Description { get; set; }
-
-        /// <summary>
         /// Gets or sets the location of this object
         /// </summary>
         public DbRef Location { get; set; } = DbRef.Nothing;
@@ -197,6 +192,33 @@ namespace Mudpie.Server.Data
 
             Logger.Warn($"Unable to resolve DbRef {reference}");
             return null;
+        }
+
+        /// <inheritdoc />
+        public object GetPropertyValue(DbRef caller, string name)
+        {
+            if (caller <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(caller), caller, "The caller must be defined");
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            var prop = this.Properties?.SingleOrDefault(p => string.CompareOrdinal(p?.Name, name) == 0);
+            if (prop == null)
+            {
+                return null;
+            }
+
+            if (!prop.PublicReadable && !caller.Equals(prop.Owner))
+            {
+                return Errors.E_PERM;
+            }
+
+            return prop.Value;
         }
 
         /// <inheritdoc />

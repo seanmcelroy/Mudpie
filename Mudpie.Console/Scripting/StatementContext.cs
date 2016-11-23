@@ -83,14 +83,12 @@ namespace Mudpie.Console.Scripting
             try
             {
                 // Add references
-                var scriptOptions = ScriptOptions.Default;
-                var mscorlib = typeof(object).Assembly;
-                var systemCore = typeof(Enumerable).Assembly;
-                var scriptingCommon = typeof(DbRef).Assembly;
-                scriptOptions = scriptOptions.AddReferences(
-                    mscorlib,
-                    systemCore,
-                    scriptingCommon);
+                var scriptOptions = ScriptOptions.Default
+                    .WithReferences(
+                    typeof(object).Assembly,
+                    typeof(Enumerable).Assembly,
+                    typeof(DbRef).Assembly)
+                    .WithImports("Mudpie", "Mudpie.Scripting", "Mudpie.Scripting.Common");
 
                 this.ReturnValue = await CSharpScript.EvaluateAsync<T>(
                     this.statement,

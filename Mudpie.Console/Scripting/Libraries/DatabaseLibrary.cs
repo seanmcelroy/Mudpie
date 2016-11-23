@@ -160,12 +160,7 @@ namespace Mudpie.Console.Scripting.Libraries
                 }
 
                 // TODO: We currently let anyone create an unset property on any other object.  That should change, but how.
-                var newProperty = new Property
-                                      {
-                                          Name = propertyName,
-                                          Owner = this.caller.DbRef,
-                                          Value = propertyValue
-                                      };
+                var newProperty = new Property(propertyName, propertyValue, this.caller.DbRef);
 
                 target.Properties = target.Properties == null ? new[] { newProperty } : (new List<Property>(target.Properties) { newProperty }).ToArray();
                 var saveAsyncTask = target.SaveAsync(this.redis, cts.Token);

@@ -658,7 +658,7 @@ namespace Mudpie.Console.Network
 
                                     case ContextState.Completed:
                                         {
-                                            Logger.Verbose($"{this.Identity?.Name}> Run of {context} complete.  Result:{context.ReturnValue}\r\n");
+                                            Logger.Verbose($"{this.Identity?.Name}> Run of {context.ProgramName} complete.  Result:{context.ReturnValue}\r\n");
                                             break;
                                         }
                                 }

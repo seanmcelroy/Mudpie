@@ -18,12 +18,14 @@ namespace Mudpie.Server.Data
 
     using log4net;
 
+    using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp.Scripting;
     using Microsoft.CodeAnalysis.Scripting;
 
     using Scripting.Common;
 
     using StackExchange.Redis.Extensions.Core;
+    using System.Reflection;
 
     /// <summary>
     /// A program is a series of lines of code that can be executed within the MUD process
@@ -111,18 +113,17 @@ namespace Mudpie.Server.Data
                                                   sw.Start();
 
                                                   // Add references
-                                                  var scriptOptions = ScriptOptions.Default;
-                                                  var mscorlib = typeof(object).Assembly;
-                                                  var systemCore = typeof(Enumerable).Assembly;
-                                                  var scriptingCommon = typeof(DbRef).Assembly;
-                                                  scriptOptions = scriptOptions.AddReferences(
-                                                      mscorlib,
-                                                      systemCore,
-                                                      scriptingCommon);
+                                                  var scriptOptions = ScriptOptions.Default
+                                                    .AddReferences(
+                                                        typeof(object).Assembly,
+                                                        typeof(Enumerable).Assembly,
+                                                        typeof(DbRef).Assembly)
+                                                    .AddReferences("Mudpie", "Mudpie.Scripting", "Mudpie.Scripting.Common");
 
                                                   var roslynScript = CSharpScript.Create<object>(
                                                       this.ScriptSource,
-                                                      globalsType: typeof(ProgramContextGlobals));
+                                                      scriptOptions,
+                                                      typeof(ProgramContextGlobals));
                                                   Debug.Assert(
                                                       roslynScript != null,
                                                       "The script object must not be null after constructing it from default banner lines");

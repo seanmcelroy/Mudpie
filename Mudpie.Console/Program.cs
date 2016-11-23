@@ -23,6 +23,8 @@ namespace Mudpie.Console
     using log4net;
     using log4net.Config;
 
+    using Mudpie.Scripting.Common;
+
     using Network;
 
     using Scripting;
@@ -61,7 +63,15 @@ namespace Mudpie.Console
                                 {
                                     Aliases = new[] { "Jehovah", "Yahweh", "Allah" },
                                     DbRef = 2,
-                                    Description = "The Creator",
+                                    Properties = new[]
+                                                     {
+                                                         new Property
+                                                             {
+                                                                 Name = "_/de",
+                                                                 Value = "The Creator",
+                                                                 Owner = 2
+                                                             }
+                                                     },
                                     Location = 1
                                 };
             
@@ -92,18 +102,25 @@ namespace Mudpie.Console
                             var voidRoom = new Room("The Void", godPlayer.DbRef)
                                                {
                                                    DbRef = 1,
-                                                   Description = "An infinite emptiness of nothing."
+                                                   Properties = new[]
+                                                                    {
+                                                                        new Property(Property.DESCRIPTION, "An infinite emptiness of nothing.", 2)
+                                                                    }
                                                };
                             await voidRoom.SaveAsync(redis, server.CancellationToken);
 
                             // GOD
-                            var godPassword = new SecureString();
-                            foreach (var c in "god")
+                            using (var godPassword = new SecureString())
                             {
-                                godPassword.AppendChar(c);
+                                foreach (var c in "god")
+                                {
+                                    godPassword.AppendChar(c);
+                                }
+
+                                godPlayer.SetPassword(godPassword);
+                                godPassword.Clear();
                             }
 
-                            godPlayer.SetPassword(godPassword);
                             await godPlayer.SaveAsync(redis, server.CancellationToken);
                             {
                                 // LOOK
@@ -112,7 +129,10 @@ namespace Mudpie.Console
                                 var lookProgram = new Mudpie.Server.Data.Program("look.msc", godPlayer.DbRef, lookProgramSource)
                                                       {
                                                           DbRef = 3,
-                                                          Description = "A program used to observe your surroundings",
+                                                          Properties = new[]
+                                                                    {
+                                                                        new Property(Property.DESCRIPTION, "A program used to observe your surroundings", godPlayer.DbRef)
+                                                                    },
                                                           Interactive = false
                                                       };
                                 await lookProgram.SaveAsync(redis, server.CancellationToken);
@@ -142,7 +162,10 @@ namespace Mudpie.Console
                                                                 var nameProgram = new Mudpie.Server.Data.Program(name, godPlayer.DbRef, source)
                                                                 {
                                                                     DbRef = nextDbRef,
-                                                                    Description = "A program used to rename objects",
+                                                                    Properties = new[]
+                                                                    {
+                                                                        new Property(Property.DESCRIPTION, "A program used to rename objects", godPlayer.DbRef)
+                                                                    },
                                                                     Interactive = false
                                                                 };
                                                                 await nameProgram.SaveAsync(cacheClient, server.CancellationToken);

@@ -58,6 +58,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Errors.cs" />
     <Compile Include="StatementContextGlobals.cs" />
     <Compile Include="ProgramContextGlobals.cs" />
     <Compile Include="DbRef.cs" />
