@@ -54,6 +54,7 @@ namespace Mudpie.Console.Scripting
 
                         using (var sr = new StreamReader(file))
                         {
+                            // ReSharper disable once PossibleNullReferenceException
                             var contents = await sr.ReadToEndAsync();
                             sr.Close();
                             return contents;

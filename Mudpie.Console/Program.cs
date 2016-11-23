@@ -43,6 +43,7 @@ namespace Mudpie.Console
         /// The logging utility instance to use to log events from this class
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Program));
 
         /// <summary>
@@ -155,7 +156,7 @@ namespace Mudpie.Console
                             }
 
                             var nextAvailableDbRef = 5;
-                            var registerProgramToVoid = new Func<string, string, int, ICacheClient, Task<int>>(async (name, desc, nextDbRef, cacheClient) =>
+                            var registerProgramToVoid = new Func<string, string[], string, int, ICacheClient, Task<int>>(async (name, aliases, desc, nextDbRef, cacheClient) =>
                                                             {
                                                                 var source = await SourceUtility.GetSourceCodeLinesAsync(mudpieConfigurationSection, name);
                                                                 Debug.Assert(source != null, $"Unable to find source code for program {name}");
@@ -173,6 +174,7 @@ namespace Mudpie.Console
                                                                 // LINK-NAME-ROOM
                                                                 var linkName = new Link(System.IO.Path.GetFileNameWithoutExtension(name), godPlayer.DbRef)
                                                                 {
+                                                                    Aliases = aliases,
                                                                     DbRef = nextDbRef + 1,
                                                                     Target = nextDbRef
                                                                 };
@@ -187,10 +189,10 @@ namespace Mudpie.Console
                                                             });
 
                             // @NAME
-                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@dig.msc", "Creates new rooms", nextAvailableDbRef, redis);
-                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@name.msc", "Rename objects", nextAvailableDbRef, redis);
-                            //nextAvailableDbRef = await registerProgramToVoid.Invoke("eval.msc", "Evaluates an expression and returns its result", nextAvailableDbRef, redis);
-
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@describe.msc", new[] { "@desc", "describe" },"Sets the description of an object", nextAvailableDbRef, redis);
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@dig.msc", new[] { "dig" }, "Creates new rooms", nextAvailableDbRef, redis);
+                            nextAvailableDbRef = await registerProgramToVoid.Invoke("@name.msc", new[] { "rename" }, "Rename objects", nextAvailableDbRef, redis);
+                            
                             await redis.Database.StringSetAsync("mudpie::dbref:counter", nextAvailableDbRef);
                         }
                         else

@@ -21,6 +21,7 @@ namespace Mudpie.Server.Data
     /// </summary>
     /// <remarks>
     /// This type exists to allow for strong typing of the DataObject member of implementations</remarks>
+    [PublicAPI]
     public interface IComposedObject
     {
         /// <summary>

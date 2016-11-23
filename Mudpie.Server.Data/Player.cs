@@ -136,12 +136,13 @@ namespace Mudpie.Server.Data
                 throw new ArgumentNullException(nameof(redis));
             }
 
-            await
-                Task.WhenAll(
+            // ReSharper disable PossibleNullReferenceException
+            await Task.WhenAll(
                     redis.SetAddAsync<string>("mudpie::players", this.DbRef),
                     redis.AddAsync($"mudpie::player:{this.DbRef}", this),
                     redis.HashSetAsync("mudpie::usernames", this.Username.ToLowerInvariant(), this.DbRef),
                     CacheManager.UpdateAsync(this.DbRef, redis, this, cancellationToken));
+            // ReSharper restore PossibleNullReferenceException
         }
 
         public void SetPassword([NotNull] SecureString password)

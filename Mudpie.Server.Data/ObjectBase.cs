@@ -33,6 +33,7 @@ namespace Mudpie.Server.Data
         /// The logging utility instance to use to log events from this class
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ObjectBase));
 
         /// <summary>
@@ -144,6 +145,7 @@ namespace Mudpie.Server.Data
                                 redis.Database.SetContainsAsync("mudpie::rooms", referenceString)
                             };
 
+            // ReSharper disable once PossibleNullReferenceException
             await Task.WhenAll(tasks);
 
             return tasks.Any(t => t.Result);
@@ -162,6 +164,7 @@ namespace Mudpie.Server.Data
                                 redis.Database.SetContainsAsync("mudpie::rooms", referenceString)
                             };
 
+            // ReSharper disable once PossibleNullReferenceException
             await Task.WhenAll(tasks);
 
             Debug.Assert(tasks != null, "tasks!= null");
@@ -192,33 +195,6 @@ namespace Mudpie.Server.Data
 
             Logger.Warn($"Unable to resolve DbRef {reference}");
             return null;
-        }
-
-        /// <inheritdoc />
-        public object GetPropertyValue(DbRef caller, string name)
-        {
-            if (caller <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(caller), caller, "The caller must be defined");
-            }
-
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                throw new ArgumentNullException(nameof(name));
-            }
-
-            var prop = this.Properties?.SingleOrDefault(p => string.CompareOrdinal(p?.Name, name) == 0);
-            if (prop == null)
-            {
-                return null;
-            }
-
-            if (!prop.PublicReadable && !caller.Equals(prop.Owner))
-            {
-                return Errors.E_PERM;
-            }
-
-            return prop.Value;
         }
 
         /// <inheritdoc />
@@ -257,6 +233,7 @@ namespace Mudpie.Server.Data
 
                 var genericUpdateAsync = typeof(CacheManager).GetMethod(nameof(CacheManager.UpdateAsync)).MakeGenericMethod(newLocationObject.DataObject.GetType());
                 var task = (Task)genericUpdateAsync.Invoke(null, new object[] { newLocation, redis, newLocationObject.DataObject, cancellationToken });
+                Debug.Assert(task != null, "task != null");
                 await task;
             }
         }

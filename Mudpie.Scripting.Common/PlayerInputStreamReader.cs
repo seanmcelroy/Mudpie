@@ -60,6 +60,7 @@ namespace Mudpie.Scripting.Common
         public override async Task<int> ReadAsync(char[] buffer, int index, int count)
         {
             this.waitHandle.WaitOne();
+            // ReSharper disable once PossibleNullReferenceException
             var ret = await base.ReadAsync(buffer, index, count);
             this.waitHandle.Reset();
             return ret;

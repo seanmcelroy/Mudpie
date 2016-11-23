@@ -34,6 +34,15 @@ namespace Mudpie.Scripting.Common
         bool Rename(DbRef reference, [NotNull] string newName);
 
         /// <summary>
+        /// Retrieves the value of the property with the given name
+        /// </summary>
+        /// <param name="reference">The <see cref="DbRef"/> of the object from which to retrieve a property</param>
+        /// <param name="name">The name of the property to retrieve</param>
+        /// <returns>The value of the property if it exists; otherwise, null</returns>
+        [CanBeNull, Pure]
+        object GetProperty(DbRef reference, [NotNull] string name);
+
+        /// <summary>
         /// Sets the value of a property on an object
         /// </summary>
         /// <param name="reference">The <see cref="DbRef"/> of the object on which to set a property</param>

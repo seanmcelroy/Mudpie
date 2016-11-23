@@ -1,0 +1,15 @@
+﻿if (DirectObject == null)
+{
+	if (string.IsNullOrWhiteSpace(DirectObjectString))
+	{
+		DatabaseLibrary.SetProperty(PlayerLocation.DbRef, Mudpie.Scripting.Common.Property.DESCRIPTION, IndirectObjectString);
+		PlayerOutput.WriteLine("Description set.");
+	}
+	else {
+		PlayerOutput.WriteLine($"I don't see that here.");
+	}
+	return 0;
+}
+
+DatabaseLibrary.SetProperty(DirectObject.DbRef, Mudpie.Scripting.Common.Property.DESCRIPTION, IndirectObjectString);
+PlayerOutput.WriteLine("Description set.");

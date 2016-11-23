@@ -27,6 +27,7 @@ namespace Mudpie.Console.Network
         /// The logging instance for this class
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Listener));
 
         /// <summary>

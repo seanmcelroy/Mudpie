@@ -134,6 +134,47 @@ namespace Mudpie.Console.Scripting.Libraries
         }
 
         /// <inheritdoc />
+        public object GetProperty(DbRef reference, string name)
+        {
+            if (this.caller == null)
+            {
+                throw new InvalidOperationException("The caller must be defined");
+            }
+
+            var cts = new CancellationTokenSource(5000); // 5 seconds
+
+            var getAsyncTask = ObjectBase.GetAsync(this.redis, reference, cts.Token); // 5 seconds
+            if (!getAsyncTask.Wait(5000))
+            {
+                return false;
+            }
+
+            var target = getAsyncTask.Result;
+            if (target == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            var prop = target.Properties?.SingleOrDefault(p => string.CompareOrdinal(p?.Name, name) == 0);
+            if (prop == null)
+            {
+                return null;
+            }
+
+            if (!prop.PublicReadable && !this.caller.DbRef.Equals(prop.Owner))
+            {
+                return Errors.E_PERM;
+            }
+
+            return prop.Value;
+        }
+
+        /// <inheritdoc />
         public bool SetProperty(DbRef reference, string propertyName, object propertyValue)
         {
             var cts = new CancellationTokenSource(5000); // 5 seconds
@@ -175,13 +216,19 @@ namespace Mudpie.Console.Scripting.Libraries
             // Property does exist
 
             // If I am not the owner, then to change this property, it must be publically writable
-            if (!target.Owner.Equals(this.caller.DbRef))
+            if (!target.Owner.Equals(this.caller.DbRef) && !existingProperty.PublicWriteable)
             {
                 return false;
             }
-            
-            // TODO....
-            throw new NotImplementedException();
+
+            existingProperty.Value = propertyValue;
+            var saveAsyncTask2 = target.SaveAsync(this.redis, cts.Token);
+            if (!saveAsyncTask2.Wait(5000))
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 }

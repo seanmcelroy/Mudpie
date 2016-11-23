@@ -65,6 +65,7 @@ namespace Mudpie.Scripting.Common
         public override async Task WriteAsync(string value)
         {
             // CALLS Write(string value) .. but we need to notify on this thread.
+            // ReSharper disable once PossibleNullReferenceException
             await base.WriteAsync(value);
             this.readerStream.NotifyStreamChanged(this.Encoding);
         }

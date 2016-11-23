@@ -59,7 +59,7 @@ namespace Mudpie.Console.Configuration
         public void Remove([NotNull] string name) => this.BaseRemove(name);
 
         /// <inheritdoc />
-        public new IEnumerator<ProgramConfigurationElement> GetEnumerator() => this.BaseGetAllKeys().Select(key => (ProgramConfigurationElement)this.BaseGet(key)).GetEnumerator();
+        public new IEnumerator<ProgramConfigurationElement> GetEnumerator() => this.BaseGetAllKeys().Where(key => key != null).Select(key => (ProgramConfigurationElement)this.BaseGet(key)).GetEnumerator();
 
         /// <inheritdoc />
         protected override ConfigurationElement CreateNewElement()

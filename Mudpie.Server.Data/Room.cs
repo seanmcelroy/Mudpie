@@ -74,10 +74,12 @@ namespace Mudpie.Server.Data
             }
 
             await
+                // ReSharper disable PossibleNullReferenceException
                 Task.WhenAll(
                     redis.SetAddAsync<string>("mudpie::rooms", this.DbRef),
                     redis.AddAsync($"mudpie::room:{this.DbRef}", this),
                     CacheManager.UpdateAsync(this.DbRef, redis, this, cancellationToken));
+            // ReSharper restore PossibleNullReferenceException
         }
     }
 }

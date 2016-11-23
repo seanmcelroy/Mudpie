@@ -71,6 +71,10 @@ namespace Mudpie.Console.Scripting
         [NotNull]
         public Queue<string> Output { get; } = new Queue<string>();
 
+        /// <summary>
+        /// Adds a string to send back to a connection
+        /// </summary>
+        /// <param name="feedback">The string to send back to the connection</param>
         protected internal void AppendFeedback([NotNull] string feedback)
         {
             if (this.Output.Count == 0 || this.Output.Peek().EndsWith("\r\n")) this.Output.Enqueue(feedback);

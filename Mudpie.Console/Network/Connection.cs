@@ -209,7 +209,7 @@ namespace Mudpie.Console.Network
             {
                 while (true)
                 {
-                    if (!this.client.Connected || !this.client.Client.Connected)
+                    if (!this.client.Connected || this.client.Client == null || !this.client.Client.Connected)
                     {
                         return;
                     }
@@ -220,6 +220,7 @@ namespace Mudpie.Console.Network
                         return;
                     }
 
+                    // ReSharper disable once PossibleNullReferenceException
                     var bytesRead = await this.stream.ReadAsync(this.buffer, 0, BufferSize, cancellationToken);
 
                     // There  might be more data, so store the data received so far.
@@ -362,8 +363,9 @@ namespace Mudpie.Console.Network
         /// <param name="content">The message received from the <see cref="Process"/> message handling loop</param>
         /// <param name="cancellationToken">A cancellation token used to abort the processing loop</param>
         /// <returns>A value indicating whether or not the parent message loop should quit</returns>
+        [NotNull]
         private async Task<bool> ProcessMessageAsync(
-            string content,
+            [CanBeNull] string content,
             CancellationToken cancellationToken)
         {
             if (content == null)
@@ -415,7 +417,7 @@ namespace Mudpie.Console.Network
                     return false;
                 }
 
-                var words = wordMatches.Cast<Match>().Select(m => m.Groups[0].Value).ToArray();
+                var words = wordMatches.Cast<Match>().Where(m => m != null).Select(m => m.Groups[0].Value).ToArray();
                 var verb = words.ElementAtOrDefault(0);
                 var argString = verb == null ? null : content.TrimStart().Substring(verb.Trim().Length).Trim();
 
@@ -439,6 +441,7 @@ namespace Mudpie.Console.Network
                 foreach (var word in words.Skip(1).Where(w => w != null))
                 {
                     var prepMatch = prepositions
+                        .Where(p => p != null)
                         .Select(p => Regex.Match(word, @"(\b" + Regex.Escape(p) + @"\b|\=)", RegexOptions.IgnoreCase))
                         .FirstOrDefault(p => p != null && p.Success);
 
@@ -614,7 +617,8 @@ namespace Mudpie.Console.Network
                 {
                     // Spawn the program as an asychronous task (no await) so input can still be processed on this connection
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                    Task.Factory.StartNew(async () =>
+                    Task.Run(
+                        async () =>
                         {
                             var context = await this.server.ScriptingEngine.RunProgramAsync<object>(target.DbRef, this, verbReferenceAndObject.Item2, this.Identity, verb, argString, words.Skip(1).ToArray(), directObject, directObjectReferenceAndObject.Item2, prep, indirectObject, indirectObjectReferenceAndObject.Item2, cancellationToken);
                             if (context.ErrorNumber == ContextErrorNumber.ProgramNotFound || context.ErrorNumber == ContextErrorNumber.ProgramNotSpecified)
@@ -773,6 +777,7 @@ namespace Mudpie.Console.Network
                 return new CommandProcessingResult(true);
             }
 
+            // ReSharper disable once PossibleNullReferenceException
             var playerRef = (DbRef)await this.server.ScriptingEngine.Redis.HashGetAsync<string>("mudpie::usernames", username.ToLowerInvariant());
             if (DbRef.Nothing.Equals(playerRef))
             {

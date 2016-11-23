@@ -18,14 +18,12 @@ namespace Mudpie.Server.Data
 
     using log4net;
 
-    using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp.Scripting;
     using Microsoft.CodeAnalysis.Scripting;
 
     using Scripting.Common;
 
     using StackExchange.Redis.Extensions.Core;
-    using System.Reflection;
 
     /// <summary>
     /// A program is a series of lines of code that can be executed within the MUD process
@@ -36,6 +34,7 @@ namespace Mudpie.Server.Data
         /// The logging utility instance to use to log events from this class
         /// </summary>
         [NotNull]
+        // ReSharper disable once AssignNullToNotNullAttribute
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Program));
 
         /// <summary>
@@ -113,12 +112,14 @@ namespace Mudpie.Server.Data
                                                   sw.Start();
 
                                                   // Add references
+                                                  // ReSharper disable PossibleNullReferenceException
                                                   var scriptOptions = ScriptOptions.Default
                                                     .AddReferences(
                                                         typeof(object).Assembly,
                                                         typeof(Enumerable).Assembly,
                                                         typeof(DbRef).Assembly)
-                                                    .AddReferences("Mudpie", "Mudpie.Scripting", "Mudpie.Scripting.Common");
+                                                      // ReSharper restore PossibleNullReferenceException
+                                                    .AddImports("Mudpie", "Mudpie.Scripting", "Mudpie.Scripting.Common");
 
                                                   var roslynScript = CSharpScript.Create<object>(
                                                       this.ScriptSource,

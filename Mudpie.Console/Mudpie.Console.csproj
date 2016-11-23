@@ -207,6 +207,7 @@
     <None Include="Scripting\Builtin\test2.prog" />
     <None Include="Scripting\Builtin\Unauthenticated\%40name.msc" />
     <None Include="Scripting\Builtin\Unauthenticated\help.mtxt" />
+    <None Include="Scripting\Builtin\Unauthenticated\%40describe.mcs" />
     <None Include="Scripting\Builtin\Unauthenticated\look.mcs" />
     <None Include="Scripting\Builtin\Unauthenticated\marco.mcs" />
   </ItemGroup>
