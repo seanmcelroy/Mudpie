@@ -111,6 +111,7 @@ namespace Mudpie.Server.Data
 
             var newObject = new T
                                 {
+                                    // ReSharper disable once PossibleNullReferenceException
                                     DbRef = Convert.ToInt32(await redis.Database.StringIncrementAsync("mudpie::dbref:counter"))
                                 };
 
@@ -145,7 +146,7 @@ namespace Mudpie.Server.Data
             // ReSharper disable once PossibleNullReferenceException
             await Task.WhenAll(tasks);
 
-            return tasks.Any(t => t.Result);
+            return tasks.Any(t => t != null && t.Result);
         }
 
         /// <summary>
@@ -216,6 +217,11 @@ namespace Mudpie.Server.Data
         /// <inheritdoc />
         public async Task MoveAsync(DbRef newLocation, ICacheClient redis, CancellationToken cancellationToken)
         {
+            if (redis == null)
+            {
+                throw new ArgumentNullException(nameof(redis));
+            }
+
             Debug.Assert(!newLocation.Equals(DbRef.Nothing), "!newLocation.Equals(DbRef.NOTHING)");
             Debug.Assert(!newLocation.Equals(DbRef.Ambiguous), "!newLocation.Equals(DbRef.AMBIGUOUS)");
             Debug.Assert(!newLocation.Equals(DbRef.FailedMatch), "!newLocation.Equals(DbRef.FAILED_MATCH)");

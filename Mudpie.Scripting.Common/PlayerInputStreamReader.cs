@@ -83,6 +83,7 @@ namespace Mudpie.Scripting.Common
         public override async Task<int> ReadBlockAsync(char[] buffer, int index, int count)
         {
             this.waitHandle.WaitOne();
+            // ReSharper disable once PossibleNullReferenceException
             var ret = await base.ReadBlockAsync(buffer, index, count);
             this.waitHandle.Reset();
             return ret;
@@ -91,6 +92,11 @@ namespace Mudpie.Scripting.Common
         /// <inheritdoc />
         public override string ReadLine()
         {
+            if (this.BaseStream == null)
+            {
+                return null;
+            }
+
             this.BaseStream.Position = 0;
             this.waitHandle.WaitOne();
             var ret = base.ReadLine();
@@ -102,6 +108,7 @@ namespace Mudpie.Scripting.Common
         public override async Task<string> ReadLineAsync()
         {
             this.waitHandle.WaitOne();
+            // ReSharper disable once PossibleNullReferenceException
             var ret = await base.ReadLineAsync();
             this.waitHandle.Reset();
             return ret;
@@ -120,6 +127,7 @@ namespace Mudpie.Scripting.Common
         public override async Task<string> ReadToEndAsync()
         {
             this.waitHandle.WaitOne();
+            // ReSharper disable once PossibleNullReferenceException
             var ret = await base.ReadToEndAsync();
             this.waitHandle.Reset();
             return ret;

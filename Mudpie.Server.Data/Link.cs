@@ -85,7 +85,7 @@ namespace Mudpie.Server.Data
         /// <inheritdoc />
         public override void Sanitize()
         {
-            this.Target = null;
+            this.Target = DbRef.Nothing;
 
             base.Sanitize();
         }
